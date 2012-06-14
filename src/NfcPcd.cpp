@@ -4,6 +4,7 @@
  * 			RC-S620/S用(今のところ).
  */
 
+#include <cstdlib>
 #include "NfcPcd.h"
 #include "devaccess.h"
 #include "misc.h"
@@ -18,27 +19,31 @@ using namespace HkNfcRwMisc;
  * const
  */
 namespace {
-	const uint16_t RW_COMMAND_LEN = 265;
-	const uint16_t RW_RESPONSE_LEN = 265;
+	const uint16_t RWBUF_MAX = NfcPcd::DATA_MAX + 10;
+	const uint16_t NORMAL_DATA_MAX = 255;	//Normalフレームのデータ部最大
 	const uint16_t RESHEAD_LEN = 2;
 	
 	const int POS_RESDATA = 2;
-
-	const uint8_t MAINCMD = 0xd4;
 	const uint8_t ACK[] = { 0x00, 0x00, 0xff, 0x00, 0xff, 0x00 };
+	
+	const int POS_NORMALFRM_DATA = 5;
+	const int POS_EXTENDFRM_DATA = 8;
 }
 
 /**
  * バッファ
  */
 namespace {
-	uint8_t s_SendBuf[RW_RESPONSE_LEN];
-
 	/// 送信バッファ
-	uint8_t* s_CommandBuf = &(s_SendBuf[5]);
+	uint8_t s_SendBuf[RWBUF_MAX];
+
+	/// Normalフレームのデータ部
+	uint8_t* s_NormalFrmBuf = &(s_SendBuf[POS_NORMALFRM_DATA]);
+	/// Extendedフレームのデータ部
+	uint8_t* s_ExtendFrmBuf = &(s_SendBuf[POS_EXTENDFRM_DATA]);
 
 	/// 受信バッファ
-	uint8_t s_ResponseBuf[RW_RESPONSE_LEN];
+	uint8_t s_ResponseBuf[RWBUF_MAX];
 }
 
 
@@ -88,9 +93,6 @@ NfcPcd* NfcPcd::getInstance()
 NfcPcd::NfcPcd()
 	: m_bOpened(false)
 {
-    memset(m_NfcId3t, 0xcc, HkNfcRw::NFCID3_LEN);
-    memset(m_NfcId3i, 0xdd, HkNfcRw::NFCID3_LEN);
-
 	s_SendBuf[0] = 0x00;
 	s_SendBuf[1] = 0x00;
 	s_SendBuf[2] = 0xff;
@@ -154,40 +156,33 @@ bool NfcPcd::init()
 	sendAck();
 
 	// RF通信のT/O
-	const uint8_t RFCONFIG1[] = {
-		MAINCMD, 0x32,
-		0x02,		// T/O
-		0x00,		// RFU
-		0x00,		// ATR_RES : no timeout
-		0x00,		// 非DEP通信時 : no timeout
-	};
-	ret = sendCmd(RFCONFIG1, sizeof(RFCONFIG1), s_ResponseBuf, &res_len);
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x32;
+	s_NormalFrmBuf[2] = 0x02;		// T/O
+	s_NormalFrmBuf[3] = 0x00;		// RFU
+	s_NormalFrmBuf[4] = 0x00;		// ATR_RES : no timeout
+	s_NormalFrmBuf[5] = 0x00;		// 非DEP通信時 : no timeout
+	ret = sendCmd(s_NormalFrmBuf, 6, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != RESHEAD_LEN)) {
 		LOGE("d4 32 02");
 		return false;
 	}
 
 	// Target捕捉時のRF通信リトライ回数
-	const uint8_t RFCONFIG2[] = {
-		MAINCMD, 0x32,
-		0x05,		// Retry
-		0x00,		// ATR_REQ/RES : only once
-		0x00,		// PSL_REQ/RES : only once
-		0x00,		// InListPassiveTarget : only once
-	};
-	ret = sendCmd(RFCONFIG2, sizeof(RFCONFIG2), s_ResponseBuf, &res_len);
+	s_NormalFrmBuf[2] = 0x05;		// Retry
+	s_NormalFrmBuf[3] = 0x00;		// ATR_REQ/RES : only once
+	s_NormalFrmBuf[4] = 0x00;		// PSL_REQ/RES : only once
+	s_NormalFrmBuf[5] = 0x00;		// InListPassiveTarget : only once
+	ret = sendCmd(s_NormalFrmBuf, 6, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != RESHEAD_LEN)) {
 		LOGE("d4 32 05(%d)%d", ret, res_len);
 		return false;
 	}
 
 	// RF出力ONからTargetID取得コマンド送信までの追加ウェイト時間
-	const uint8_t RFCONFIG3[] = {
-		MAINCMD, 0x32,
-		0x81,		// wait
-		0xb7,		// ?
-	};
-	ret = sendCmd(RFCONFIG3, sizeof(RFCONFIG3), s_ResponseBuf, &res_len);
+	s_NormalFrmBuf[2] = 0x81;		// wait
+	s_NormalFrmBuf[3] = 0xb7;		// ?
+	ret = sendCmd(s_NormalFrmBuf, 4, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != RESHEAD_LEN)) {
 		LOGE("d4 32 81(%d)%d", ret, res_len);
 		return false;
@@ -201,22 +196,28 @@ bool NfcPcd::init()
 	// nfcpyのまね1
 #if 0
 	const uint8_t RFCONFIG4[] = {
-		MAINCMD, 0x32,
+		0xd4, 0x32,
 		0x82,		// ?
 		0x08, 0x01, 0x08		// ?
 	};
-	ret = sendCmd(RFCONFIG4, sizeof(RFCONFIG4), s_ResponseBuf, &res_len);
+	s_NormalFrmBuf[2] = 0x82;		// ?
+	s_NormalFrmBuf[3] = 0x08;		// ?
+	s_NormalFrmBuf[4] = 0x01;		// ?
+	s_NormalFrmBuf[5] = 0x08;		// ?
+	ret = sendCmd(s_NormalFrmBuf, 6, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != RESHEAD_LEN)) {
 		LOGE("d4 32 82(%d)%d", ret, res_len);
 		//return false;
 	}
-#endif
 
 	// nfcpyのまね2
 	const uint8_t RFCONFIG5[] = {
-		MAINCMD, 0x08,
+		0xd4, 0x08,
 		0x63, 0x0d, 0x00,
 	};
+	s_NormalFrmBuf[2] = 0x82;		// ?
+	s_NormalFrmBuf[3] = 0x08;		// ?
+	s_NormalFrmBuf[4] = 0x01;		// ?
 	ret = sendCmd(RFCONFIG5, sizeof(RFCONFIG5), s_ResponseBuf, &res_len);
 	if(!ret || res_len < RESHEAD_LEN + 1) {
 		LOGE("WriteRegister(%d) / %d", ret, res_len);
@@ -225,7 +226,7 @@ bool NfcPcd::init()
 
 	// nfcpyのまね3
 	const uint8_t RFCONFIG6[] = {
-		MAINCMD, 0x06,
+		0xd4, 0x06,
 		0xa0, 0x1b,		// 0xa01b～0xa022(8byte)
 		0xa0, 0x1c,
 		0xa0, 0x1d,
@@ -244,15 +245,16 @@ bool NfcPcd::init()
 	}
 
 	// nfcpyのまね4
-	s_CommandBuf[0] = MAINCMD;
-	s_CommandBuf[1] = 0x32;		//RFConfiguration
-	s_CommandBuf[2] = 0x0b;
-	memcpy(s_CommandBuf + 3, s_ResponseBuf + POS_RESDATA, READREG_LEN);
-	ret = sendCmd(s_CommandBuf, 3+READREG_LEN, s_ResponseBuf, &res_len);
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x32;		//RFConfiguration
+	s_NormalFrmBuf[2] = 0x0b;
+	memcpy(s_NormalFrmBuf + 3, s_ResponseBuf + POS_RESDATA, READREG_LEN);
+	ret = sendCmd(s_NormalFrmBuf, 3+READREG_LEN, s_ResponseBuf, &res_len);
 	if(!ret || res_len != RESHEAD_LEN) {
 		LOGE("32 0b(%d) / %d", ret, res_len);
 		//return false;
 	}
+#endif
 
 	// OFFにしておこう
 	ret = rfOff();
@@ -272,14 +274,12 @@ bool NfcPcd::rfOff()
 	//LOGD("%s", __PRETTY_FUNCTION__);
 
 	uint16_t res_len;
-	const uint8_t RFCONFIG_RFOFF[] = {
-		MAINCMD, 0x32,
-		0x01,		// RF field
-		0x00,		// bit1 : Auto RFCA : OFF
-					// bit0 : RF ON/OFF : OFF
-	};
-	bool ret = sendCmd(RFCONFIG_RFOFF, sizeof(RFCONFIG_RFOFF),
-					s_ResponseBuf, &res_len);
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x32;
+	s_NormalFrmBuf[2] = 0x01;		// RF field
+	s_NormalFrmBuf[3] = 0x00;		// bit1 : Auto RFCA : OFF
+									// bit0 : RF ON/OFF : OFF
+	bool ret = sendCmd(s_NormalFrmBuf, 4, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != RESHEAD_LEN)) {
 		LOGE("rfOff ret=%d", ret);
 		return false;
@@ -302,13 +302,13 @@ bool NfcPcd::rfConfiguration(uint8_t cmd, const uint8_t* pCommand, uint8_t Comma
 {
 	//LOGD("%s", __PRETTY_FUNCTION__);
 
-	s_CommandBuf[0] = MAINCMD;
-	s_CommandBuf[1] = 0x32;		//RFConfiguration
-	s_CommandBuf[2] = cmd;
-	memcpy(s_CommandBuf + 3, pCommand, CommandLen);
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x32;		//RFConfiguration
+	s_NormalFrmBuf[2] = cmd;
+	memcpy(s_NormalFrmBuf + 3, pCommand, CommandLen);
 
 	uint16_t res_len;
-	bool ret = sendCmd(s_CommandBuf, 3 + CommandLen, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 3 + CommandLen, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != RESHEAD_LEN)) {
 		LOGE("rfConfiguration ret=%d", ret);
 		return false;
@@ -319,7 +319,7 @@ bool NfcPcd::rfConfiguration(uint8_t cmd, const uint8_t* pCommand, uint8_t Comma
 
 
 /**
- * [RC-S620/S]Reset
+ * Reset
  *
  * @retval		true			成功
  * @retval		false			失敗
@@ -328,9 +328,12 @@ bool NfcPcd::reset()
 {
 	//LOGD("%s", __PRETTY_FUNCTION__);
 
-	const uint8_t RESET[] = { MAINCMD, 0x18, 0x01 };
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x18;		//Reset
+	s_NormalFrmBuf[2] = 0x01;
+
 	uint16_t res_len;
-	bool ret = sendCmd(RESET, sizeof(RESET), s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 3, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != RESHEAD_LEN)) {
 		LOGE("reset ret=%d", ret);
 		return false;
@@ -345,7 +348,7 @@ bool NfcPcd::reset()
 
 
 /**
- * [RC-S620/S]Diagnose
+ * Diagnose
  *
  * @param[in]	pCommand		送信するコマンド
  * @param[in]	CommandLen		pCommandの長さ
@@ -359,13 +362,13 @@ bool NfcPcd::diagnose(uint8_t cmd, const uint8_t* pCommand, uint8_t CommandLen,
 {
 	//LOGD("%s", __PRETTY_FUNCTION__);
 
-	s_CommandBuf[0] = MAINCMD;
-	s_CommandBuf[1] = 0x00;			//Diagnose
-	s_CommandBuf[2] = cmd;
-	memcpy(s_CommandBuf + 3, pCommand, CommandLen);
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x00;			//Diagnose
+	s_NormalFrmBuf[2] = cmd;
+	memcpy(s_NormalFrmBuf + 3, pCommand, CommandLen);
 	
 	uint16_t res_len;
-	bool ret = sendCmd(s_CommandBuf, 3 + CommandLen, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 3 + CommandLen, s_ResponseBuf, &res_len);
 	if(!ret || (res_len < RESHEAD_LEN)) {
 		LOGE("diagnose ret=%d/%d", ret, res_len);
 		return false;
@@ -388,12 +391,12 @@ bool NfcPcd::setParameters(uint8_t val)
 {
 	//LOGD("%s", __PRETTY_FUNCTION__);
 
-	s_CommandBuf[0] = MAINCMD;
-	s_CommandBuf[1] = 0x12;
-	s_CommandBuf[2] = val;
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x12;
+	s_NormalFrmBuf[2] = val;
 
 	uint16_t res_len;
-	bool ret = sendCmd(s_CommandBuf, 3, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 3, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != RESHEAD_LEN)) {
 		LOGE("setParam ret=%d", ret);
 	}
@@ -403,7 +406,7 @@ bool NfcPcd::setParameters(uint8_t val)
 
 
 /**
- * [RC-S620/S]GetFirmwareVersion
+ * GetFirmwareVersion
  *
  * @param[out]	pResponse		レスポンス(GF_XXでアクセス)
  * @retval		true			成功
@@ -414,11 +417,11 @@ bool NfcPcd::getFirmwareVersion(uint8_t* pResponse)
 	LOGD("%s", __PRETTY_FUNCTION__);
 
 	const uint16_t RES_LEN = 4;
-	s_CommandBuf[0] = MAINCMD;
-	s_CommandBuf[1] = 0x02;
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x02;
 
 	uint16_t res_len;
-	bool ret = sendCmd(s_CommandBuf, 2, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 2, s_ResponseBuf, &res_len);
 	if(!ret || (res_len < RESHEAD_LEN + RES_LEN)) {
 		LOGE("getFirmware ret=%d", ret);
 		return false;
@@ -431,7 +434,7 @@ bool NfcPcd::getFirmwareVersion(uint8_t* pResponse)
 
 
 /**
- * [RC-S620/S]GetGeneralStatus
+ * GetGeneralStatus
  *
  * @param[out]	pResponse		レスポンス(GGS_XXでアクセス)
  * @retval		true			成功
@@ -441,12 +444,12 @@ bool NfcPcd::getGeneralStatus(uint8_t* pResponse)
 {
 	LOGD("%s", __PRETTY_FUNCTION__);
 
-	s_CommandBuf[0] = MAINCMD;
-	s_CommandBuf[1] = 0x04;
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x04;
 
 	const uint16_t RES_LEN = 5;
 	uint16_t res_len;
-	bool ret = sendCmd(s_CommandBuf, 2, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 2, s_ResponseBuf, &res_len);
 	if(!ret || (res_len < RESHEAD_LEN + RES_LEN)) {
 		LOGE("getGeneralStatus ret=%d/%d", ret, res_len);
 		return false;
@@ -459,7 +462,33 @@ bool NfcPcd::getGeneralStatus(uint8_t* pResponse)
 
 
 /**
- * [RC-S620/S]CommunicateThruEX
+ * CommunicateThruEX
+ *
+ * @retval		true			成功
+ * @retval		false			失敗
+ */
+bool NfcPcd::communicateThruEx()
+{
+	//LOGD("%s : [%d]", __PRETTY_FUNCTION__, CommandLen);
+
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0xa0;		//CommunicateThruEX
+	s_NormalFrmBuf[2] = 0x00;
+	s_NormalFrmBuf[3] = 0x00;
+
+	uint16_t res_len;
+	bool ret = sendCmd(s_NormalFrmBuf, 4, s_ResponseBuf, &res_len);
+	if(!ret || (res_len < RESHEAD_LEN+1)) {
+		LOGE("communicateThruEx ret=%d", ret);
+		return false;
+	}
+
+	return true;
+}
+
+
+/**
+ * CommunicateThruEX
  *
  * @param[in]	pCommand		送信するコマンド
  * @param[in]	CommandLen		pCommandの長さ
@@ -475,12 +504,12 @@ bool NfcPcd::communicateThruEx(
 {
 	//LOGD("%s : [%d]", __PRETTY_FUNCTION__, CommandLen);
 
-	s_CommandBuf[0] = MAINCMD;
-	s_CommandBuf[1] = 0xa0;		//CommunicateThruEX
-	memcpy(s_CommandBuf + 2, pCommand, CommandLen);
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0xa0;		//CommunicateThruEX
+	memcpy(s_NormalFrmBuf + 2, pCommand, CommandLen);
 
 	uint16_t res_len;
-	bool ret = sendCmd(s_CommandBuf, 2 + CommandLen, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 2 + CommandLen, s_ResponseBuf, &res_len);
 	if(!ret || (res_len < RESHEAD_LEN+1)) {
 		LOGE("communicateThruEx ret=%d", ret);
 		return false;
@@ -503,7 +532,7 @@ bool NfcPcd::communicateThruEx(
 
 
 /**
- * [RC-S620/S]CommunicateThruEX
+ * CommunicateThruEX
  *
  * @param[in]	Timeout			タイムアウト値[msec]
  * @param[in]	pCommand		送信するコマンド
@@ -523,20 +552,20 @@ bool NfcPcd::communicateThruEx(
 {
 	//LOGD("%s : (%d)", __PRETTY_FUNCTION__, CommandLen);
 
-	s_CommandBuf[0] = MAINCMD;
-	s_CommandBuf[1] = 0xa0;		//CommunicateThruEX
-	s_CommandBuf[2] = l16(Timeout);
-	s_CommandBuf[3] = h16(Timeout);
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0xa0;		//CommunicateThruEX
+	s_NormalFrmBuf[2] = l16(Timeout);
+	s_NormalFrmBuf[3] = h16(Timeout);
 	if(CommandLen) {
-		s_CommandBuf[4] = (uint8_t)(CommandLen + 1);
-		memcpy(s_CommandBuf + 5, pCommand, CommandLen);
+		s_NormalFrmBuf[4] = (uint8_t)(CommandLen + 1);
+		memcpy(s_NormalFrmBuf + 5, pCommand, CommandLen);
 		CommandLen += 5;
 	} else {
 		CommandLen = 4;
 	}
 
 	uint16_t res_len;
-	bool ret = sendCmd(s_CommandBuf, CommandLen, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, CommandLen, s_ResponseBuf, &res_len);
 	if(!ret || (res_len < RESHEAD_LEN+1)) {
 		LOGE("communicateThruEx ret=%d", ret);
 		return false;
@@ -566,53 +595,51 @@ bool NfcPcd::communicateThruEx(
 /**
  * InJumpForDEP or InJumpForPSL
  *
- * @param[in]	Ap			Active/Passive
- * @param[in]	Br			通信速度
- * @param[in]	bNfcId3		NFCID3を使用するかどうか
+ * @param[in]	pParam		DEP initiatorパラメータ
  * @param[in]	pGt			Gt(Initiator)
  * @param[in]	GtLen		Gtサイズ
  */
 bool NfcPcd::_inJump(uint8_t Cmd,
-		ActPass Ap, BaudRate Br, bool bNfcId3,
+		const DepInitiatorParam* pParam,
 		const uint8_t* pGt, uint8_t GtLen)
 {
 	//LOGD("%s", __PRETTY_FUNCTION__);
 
-	s_CommandBuf[0] = MAINCMD;
-	s_CommandBuf[1] = Cmd;
-	s_CommandBuf[2] = (uint8_t)Ap;
-	s_CommandBuf[3] = (uint8_t)Br;
-	s_CommandBuf[4] = 0x00;		//Next
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = Cmd;
+	s_NormalFrmBuf[2] = (uint8_t)pParam->Ap;
+	s_NormalFrmBuf[3] = (uint8_t)pParam->Br;
+	s_NormalFrmBuf[4] = 0x00;		//Next
 	uint8_t len = 5;
-	if(Ap == AP_PASSIVE) {
-		s_CommandBuf[4] |= 0x01;
-		if(Br == BR_106K) {
+	if(pParam->Ap == AP_PASSIVE) {
+		s_NormalFrmBuf[4] |= 0x01;
+		if(pParam->Br == BR_106K) {
 			const uint8_t known_id[4] = { 0x08, 0x01, 0x02, 0x03 };
-			memcpy(&(s_CommandBuf[len]), known_id, sizeof(known_id));
+			memcpy(&(s_NormalFrmBuf[len]), known_id, sizeof(known_id));
 			len += sizeof(known_id);
 		} else {
 			const uint8_t pol_req[5] = { 0x00, 0xff, 0xff, 0x01, 0x00 };
-			memcpy(&(s_CommandBuf[len]), pol_req, sizeof(pol_req));
+			memcpy(&(s_NormalFrmBuf[len]), pol_req, sizeof(pol_req));
 			len += sizeof(pol_req);
 		}
 	}
-	if(bNfcId3) {
-		s_CommandBuf[4] |= 0x02;
-		memcpy(&(s_CommandBuf[len]), m_NfcId3i, HkNfcRw::NFCID3_LEN);
-		len += HkNfcRw::NFCID3_LEN;
+	if(pParam->pNfcId3) {
+		s_NormalFrmBuf[4] |= 0x02;
+		memcpy(&(s_NormalFrmBuf[len]), pParam->pNfcId3, NFCID3_LEN);
+		len += NFCID3_LEN;
 	}
 	if(pGt && GtLen) {
-		s_CommandBuf[4] |= 0x04;
-		memcpy(&(s_CommandBuf[len]), pGt, GtLen);
+		s_NormalFrmBuf[4] |= 0x04;
+		memcpy(&(s_NormalFrmBuf[len]), pGt, GtLen);
 		len += GtLen;
 	}
 
 //	for(int i=0; i<len; i++) {
-//		LOGD("%02x ", s_CommandBuf[i]);
+//		LOGD("%02x ", s_NormalFrmBuf[i]);
 //	}
 
 	uint16_t res_len;
-	bool ret = sendCmd(s_CommandBuf, len, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, len, s_ResponseBuf, &res_len);
 
 //	for(int i=0; i<res_len; i++) {
 //		LOGD("%02x ", s_ResponseBuf[i]);
@@ -630,36 +657,32 @@ bool NfcPcd::_inJump(uint8_t Cmd,
 /**
  * InJumpForDEP
  *
- * @param[in]	Ap			Active/Passive
- * @param[in]	Br			通信速度
- * @param[in]	bNfcId3		NFCID3を使用するかどうか
+ * @param[in]	pParam		DEP initiatorパラメータ
  * @param[in]	pGt			Gt(Initiator)
  * @param[in]	GtLen		Gtサイズ
  */
 bool NfcPcd::inJumpForDep(
-		ActPass Ap, BaudRate Br, bool bNfcId3,
+		const DepInitiatorParam* pParam,
 		const uint8_t* pGt, uint8_t GtLen)
 {
 	LOGD("%s", __PRETTY_FUNCTION__);
-	return _inJump(0x56, Ap, Br, bNfcId3, pGt, GtLen);
+	return _inJump(0x56, pParam, pGt, GtLen);
 }
 
 
 /**
  * InJumpForPSL
  *
- * @param[in]	Ap			Active/Passive
- * @param[in]	Br			通信速度
- * @param[in]	bNfcId3		NFCID3を使用するかどうか
+ * @param[in]	pParam		DEP initiatorパラメータ
  * @param[in]	pGt			Gt(Initiator)
  * @param[in]	GtLen		Gtサイズ
  */
 bool NfcPcd::inJumpForPsl(
-		ActPass Ap, BaudRate Br, bool bNfcId3,
+		const DepInitiatorParam* pParam,
 		const uint8_t* pGt, uint8_t GtLen)
 {
 	//LOGD("%s", __PRETTY_FUNCTION__);
-	return _inJump(0x46, Ap, Br, bNfcId3, pGt, GtLen);
+	return _inJump(0x46, pParam, pGt, GtLen);
 }
 
 
@@ -679,12 +702,12 @@ bool NfcPcd::inListPassiveTarget(
 			uint8_t** ppTgData, uint8_t* pTgLen)
 {
 	uint16_t responseLen;
-	s_CommandBuf[0] = MAINCMD;
-	s_CommandBuf[1] = 0x4a;				//InListPassiveTarget
-	s_CommandBuf[2] = 0x01;
-	memcpy(s_CommandBuf + 3, pInitData, InitLen);
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x4a;				//InListPassiveTarget
+	s_NormalFrmBuf[2] = 0x01;
+	memcpy(s_NormalFrmBuf + 3, pInitData, InitLen);
 
-	bool ret = sendCmd(s_CommandBuf, 3+InitLen, s_ResponseBuf, &responseLen);
+	bool ret = sendCmd(s_NormalFrmBuf, 3+InitLen, s_ResponseBuf, &responseLen);
 	if(!ret || s_ResponseBuf[POS_RESDATA] != 0x01) {
 		return false;
 	}
@@ -711,16 +734,16 @@ bool NfcPcd::inDataExchange(
 			uint8_t* pResponse, uint8_t* pResponseLen,
 			bool bCoutinue/*=false*/)
 {
-	s_CommandBuf[0] = MAINCMD;
-	s_CommandBuf[1] = 0x40;			//InDataExchange
-	s_CommandBuf[2] = 0x01;			//Tg
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x40;			//InDataExchange
+	s_NormalFrmBuf[2] = 0x01;			//Tg
 	if(bCoutinue) {
-		s_CommandBuf[2] |= 0x40;	//MI
+		s_NormalFrmBuf[2] |= 0x40;	//MI
 	}
-	memcpy(s_CommandBuf + 3, pCommand, CommandLen);
+	memcpy(s_NormalFrmBuf + 3, pCommand, CommandLen);
 
 	uint16_t res_len;
-	bool ret = sendCmd(s_CommandBuf, 3 + CommandLen, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 3 + CommandLen, s_ResponseBuf, &res_len);
 	if(!ret || (res_len < RESHEAD_LEN+1) || (s_ResponseBuf[POS_RESDATA] != 0x00)) {
 		LOGE("inDataExchange ret=%d / len=%d / code=%02x", ret, res_len, s_ResponseBuf[POS_RESDATA]);
 		return false;
@@ -748,12 +771,12 @@ bool NfcPcd::inCommunicateThru(
 			const uint8_t* pCommand, uint8_t CommandLen,
 			uint8_t* pResponse, uint8_t* pResponseLen)
 {
-	s_CommandBuf[0] = MAINCMD;
-	s_CommandBuf[1] = 0x42;			//InCommunicateThru
-	memcpy(s_CommandBuf + 2, pCommand, CommandLen);
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x42;			//InCommunicateThru
+	memcpy(s_NormalFrmBuf + 2, pCommand, CommandLen);
 
 	uint16_t res_len;
-	bool ret = sendCmd(s_CommandBuf, 2 + CommandLen, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 2 + CommandLen, s_ResponseBuf, &res_len);
 	for(int i=0; i<res_len; i++) {
 		LOGD("%02x ", s_ResponseBuf[i]);
 	}
@@ -788,61 +811,79 @@ bool NfcPcd::inCommunicateThru(
  * @retval		false			失敗
  */
 bool NfcPcd::tgInitAsTarget(
-			uint16_t SystemCode,
-			const uint8_t* pGt, uint8_t GtLen)
+			const TargetParam* pParam,
+			const uint8_t* pGt, uint8_t GtLen,
+			uint8_t* pResponse/*=0*/, uint8_t* pResponseLen/*=0*/)
 {
 	LOGD("%s", __PRETTY_FUNCTION__);
 
 	uint16_t len = 0;
 
-	s_CommandBuf[len++] = MAINCMD;
-	s_CommandBuf[len++] = 0x8c;				//TgInitAsTarget
+	s_NormalFrmBuf[len++] = 0xd4;
+	s_NormalFrmBuf[len++] = 0x8c;				//TgInitAsTarget
 
 	//mode
-	s_CommandBuf[len++] = 0x00;
+	s_NormalFrmBuf[len++] = 0x00;
 
 	//MIFARE
 	//SENS_RES
-	s_CommandBuf[len++] = 0x00;
-	s_CommandBuf[len++] = 0x04;		//0x00はだめ
+	s_NormalFrmBuf[len++] = 0x00;
+	s_NormalFrmBuf[len++] = 0x04;		//0x00はだめ
 	//NFCID1
-	s_CommandBuf[len++] = 0x00;		//自由
-	s_CommandBuf[len++] = 0x00;
-	s_CommandBuf[len++] = 0x00;
+	if(pParam->pUId) {
+		memcpy(s_NormalFrmBuf + len, pParam->pUId, 3);
+		len += 3;
+	} else {
+		s_NormalFrmBuf[len++] = std::rand() & 0xff;
+		s_NormalFrmBuf[len++] = std::rand() & 0xff;
+		s_NormalFrmBuf[len++] = std::rand() & 0xff;
+	}
 	//SEL_RES
-	s_CommandBuf[len++] = 0x40;		//固定
+	s_NormalFrmBuf[len++] = 0x40;		//固定
 
 	//FeliCaParams
 	//IDm
-    memcpy(&(s_CommandBuf[len]), m_NfcId3t, HkNfcRw::NFCID2_LEN);
-    len += HkNfcRw::NFCID2_LEN;
+	uint8_t idm_pos = len;
+	if(pParam->pIDm) {
+		memcpy(s_NormalFrmBuf + len, pParam->pIDm, NFCID2_LEN);
+	} else {
+		//
+		s_NormalFrmBuf[len++] = 0x01;
+		s_NormalFrmBuf[len++] = 0xfe;
+		s_NormalFrmBuf[len++] = std::rand() & 0xff;
+		s_NormalFrmBuf[len++] = std::rand() & 0xff;
+		s_NormalFrmBuf[len++] = std::rand() & 0xff;
+		s_NormalFrmBuf[len++] = std::rand() & 0xff;
+		s_NormalFrmBuf[len++] = std::rand() & 0xff;
+		s_NormalFrmBuf[len++] = std::rand() & 0xff;
+	}
+	len += NFCID2_LEN;
 	//PMm
-	memset(&(s_CommandBuf[len]), 0x00, 8);
+	memset(s_NormalFrmBuf + len, 0xff, 8);
 	len += 8;
 	//SystemCode
-	s_CommandBuf[len++] = h16(SystemCode);
-	s_CommandBuf[len++] = l16(SystemCode);
+	s_NormalFrmBuf[len++] = h16(pParam->SystemCode);
+	s_NormalFrmBuf[len++] = l16(pParam->SystemCode);
 
 	//NFCID3t
-	memcpy(&(s_CommandBuf[len]), m_NfcId3t, HkNfcRw::NFCID3_LEN);
-	len += HkNfcRw::NFCID3_LEN;
-	s_CommandBuf[len++] = 0x00;
-	s_CommandBuf[len++] = 0x00;
+	memcpy(s_NormalFrmBuf + len, s_NormalFrmBuf + idm_pos, NFCID2_LEN);
+	s_NormalFrmBuf[len++] = 0x00;
+	s_NormalFrmBuf[len++] = 0x00;
 
-	s_CommandBuf[len++] = GtLen;	//Gt
+	//General Bytes
 	if(GtLen) {
-		memcpy(&(s_CommandBuf[len]), pGt, GtLen);
+	s_NormalFrmBuf[len++] = GtLen;	//Gt
+		memcpy(s_NormalFrmBuf + len, pGt, GtLen);
 		len += GtLen;
 	}
-	s_CommandBuf[len++] = 0x00;	//Tk
 
 
 //	for(int i=0; i<len; i++) {
-//		LOGD("%02x ", s_CommandBuf[i]);
+//		LOGD("%02x ", s_NormalFrmBuf[i]);
 //	}
 
 	uint16_t res_len;
-	bool ret = sendCmd(s_CommandBuf, len, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, len, s_ResponseBuf, &res_len);
 	if(!ret || (res_len < RESHEAD_LEN+1)) {
 		LOGE("TgInitAsTarget ret=%d/len=%d", ret, res_len);
 		return ret;
@@ -851,11 +892,19 @@ bool NfcPcd::tgInitAsTarget(
 #ifdef HKNFCRW_ENABLE_DEBUG
 	uint8_t mode = s_ResponseBuf[POS_RESDATA];
 	LOGD("Mode : %02x ", mode);
-	//memcpy(initiatorCmd, &(s_ResponseBuf[POS_RESDATA+1]), res_len - 3);
-//	for(int i=0; i<res_len; i++) {
-//		LOGD("%02x ", s_ResponseBuf[i]);
-//	}
-#endif
+	if(pResponse && pResponseLen) {
+		*pResponseLen = res_len - 3;
+		memcpy(pResponse, &(s_ResponseBuf[POS_RESDATA+1]), *pResponseLen);
+	}
+	for(int i=0; i<res_len; i++) {
+		LOGD("%02x ", s_ResponseBuf[i]);
+	}
+#endif	//HKNFCRW_ENABLE_DEBUG
+
+	if(pResponse && pResponseLen) {
+		*pResponseLen = (uint8_t)(res_len - 4);
+		memcpy(pResponse, s_ResponseBuf + 4, *pResponseLen);
+	}
 
 	return true;
 }
@@ -882,16 +931,17 @@ bool NfcPcd::tgResponseToInitiator(
 
 	uint16_t len = 0;
 
-	s_CommandBuf[len++] = MAINCMD;
-	s_CommandBuf[len++] = 0x90;				//TgResponseToInitiator
+	s_NormalFrmBuf[len++] = 0xd4;
+	s_NormalFrmBuf[len++] = 0x90;				//TgResponseToInitiator
 
 	//応答
-	s_CommandBuf[len++] = 0xd5;
-	memcpy(&(s_CommandBuf[len]), pData, DataLen);
+//ここは練り直した方がいい
+	s_NormalFrmBuf[len++] = 0xd5;
+	memcpy(&(s_NormalFrmBuf[len]), pData, DataLen);
 	len += DataLen;
 
 	uint16_t res_len;
-	bool ret = sendCmd(s_CommandBuf, len, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, len, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != 3) || s_ResponseBuf[POS_RESDATA] != 0x00) {
 		LOGE("tgResponseToInitiator ret=%d", ret);
 		return false;
@@ -920,10 +970,11 @@ bool NfcPcd::tgResponseToInitiator(
  */
 bool NfcPcd::tgGetInitiatorCommand(uint8_t* pResponse, uint8_t* pResponseLen)
 {
-	const uint8_t CMD[] = { MAINCMD, 0x88 };
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x88;				//TgGetInitiatorCommand
 
 	uint16_t res_len;
-	bool ret = sendCmd(CMD, 2, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 2, s_ResponseBuf, &res_len);
 	if(!ret || (res_len < RESHEAD_LEN+1) || (s_ResponseBuf[POS_RESDATA] != 0x00)) {
 		LOGE("tgGetInitiatorCommand ret=%d / len=%d / code=%02x", ret, res_len, s_ResponseBuf[POS_RESDATA]);
 		return false;
@@ -949,10 +1000,11 @@ bool NfcPcd::tgGetInitiatorCommand(uint8_t* pResponse, uint8_t* pResponseLen)
  */
 bool NfcPcd::tgGetData(uint8_t* pResponse, uint8_t* pResponseLen)
 {
-	const uint8_t CMD[] = { MAINCMD, 0x86 };
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x86;				//TgGetData
 
 	uint16_t res_len;
-	bool ret = sendCmd(CMD, 2, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 2, s_ResponseBuf, &res_len);
 	if(!ret || (res_len < RESHEAD_LEN+1) || (s_ResponseBuf[POS_RESDATA] != 0x00)) {
 		LOGE("tgGetData ret=%d / len=%d / code=%02x", ret, res_len, s_ResponseBuf[POS_RESDATA]);
 		return false;
@@ -978,12 +1030,12 @@ bool NfcPcd::tgGetData(uint8_t* pResponse, uint8_t* pResponseLen)
  */
 bool NfcPcd::tgSetData(const uint8_t* pCommand, uint8_t CommandLen)
 {
-	s_CommandBuf[0] = MAINCMD;
-	s_CommandBuf[1] = 0x8e;			//TgSetData
-	memcpy(s_CommandBuf + 2, pCommand, CommandLen);
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x8e;			//TgSetData
+	memcpy(s_NormalFrmBuf + 2, pCommand, CommandLen);
 
 	uint16_t res_len;
-	bool ret = sendCmd(s_CommandBuf, 2 + CommandLen, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 2 + CommandLen, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != RESHEAD_LEN+1) || (s_ResponseBuf[POS_RESDATA] != 0x00)) {
 		LOGE("tgSetData ret=%d / len=%d / code=%02x", ret, res_len, s_ResponseBuf[POS_RESDATA]);
 		return false;
@@ -1003,10 +1055,13 @@ bool NfcPcd::tgSetData(const uint8_t* pCommand, uint8_t CommandLen)
  */
 bool NfcPcd::inRelease()
 {
-	const uint8_t CMD[] = { MAINCMD, 0x52, 0x01 };
+	const uint8_t CMD[] = { 0xd4, 0x52, 0x01 };
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x52;			//InRelease
+	s_NormalFrmBuf[2] = 0x01;
 
 	uint16_t res_len;
-	bool ret = sendCmd(CMD, 3, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 3, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != RESHEAD_LEN+1) || (s_ResponseBuf[POS_RESDATA] != 0x00)) {
 		LOGE("inRelease ret=%d / len=%d / code=%02x", ret, res_len, s_ResponseBuf[POS_RESDATA]);
 		return false;
@@ -1022,46 +1077,55 @@ bool NfcPcd::inRelease()
 
 
 /**
- * [RC-S620/S]パケット送受信
+ * パケット送受信
  *
  * @param[in]	pCommand		送信するコマンド
  * @param[in]	CommandLen		pCommandの長さ
- * @param[out]	pResponse		レスポンス(0xd5, cmd+1含む)
+ * @param[out]	pResponse		レスポンス(0xd5含む)
  * @param[out]	pResponseLen	pResponseの長さ
  *
  * @retval		true			成功
  * @retval		false			失敗
  */
 bool NfcPcd::sendCmd(
-			const uint8_t* pCommand, uint8_t CommandLen,
+			const uint8_t* pCommand, uint16_t CommandLen,
 			uint8_t* pResponse, uint16_t* pResponseLen,
 			bool bRecv/*=true*/)
 {
 	//LOGD("CommandLen : %d", CommandLen);
 	*pResponseLen = 0;
 
-#if 0
-	if(CommandLen > 255) {
-		LOGE("Extended frame not support.");
+	if(CommandLen > DATA_MAX) {
+		LOGE("too large");
 		return false;
 	}
-#endif
 
-	uint16_t send_len = 0;
-
-	//パケット送信
+	uint16_t send_len = 3;
 	uint8_t dcs = _calc_dcs(pCommand, CommandLen);
-	s_SendBuf[3] = CommandLen;
-	s_SendBuf[4] = (uint8_t)(0 - s_SendBuf[3]);
-	send_len = 5;
-	if(pCommand != s_SendBuf + 5) {
-		memcpy(s_SendBuf + send_len, pCommand, CommandLen);
+
+	if(CommandLen <= NORMAL_DATA_MAX) {
+		// Normalフレーム
+		s_SendBuf[send_len++] = CommandLen;						//[3]
+		s_SendBuf[send_len++] = (uint8_t)(0 - s_SendBuf[3]);	//[4]
+		if(pCommand != s_SendBuf + POS_NORMALFRM_DATA) {
+			memcpy(s_SendBuf + send_len, pCommand, CommandLen);
+		}
+	} else {
+		// Extendedフレーム
+		s_SendBuf[send_len++] = 0xff;							//[3]
+		s_SendBuf[send_len++] = 0xff;							//[4]
+		s_SendBuf[send_len++] = (uint8_t)(CommandLen >> 8);		//[5]
+		s_SendBuf[send_len++] = (uint8_t)CommandLen;			//[6]
+		s_SendBuf[send_len++] = (uint8_t)(0 - s_SendBuf[5] - s_SendBuf[6]);
+		if(pCommand != s_SendBuf + POS_EXTENDFRM_DATA) {
+			memcpy(s_SendBuf + send_len, pCommand, CommandLen);
+		}
 	}
 	send_len += CommandLen;
 	s_SendBuf[send_len++] = dcs;
 	s_SendBuf[send_len++] = 0x00;
 
-#if 0
+#ifdef ENABLE_FRAME_LOG
 	LOGD("------------");
 	for(int i=0; i<send_len; i++) {
 		LOGD("[W]%02x ", s_SendBuf[i]);
@@ -1089,7 +1153,7 @@ bool NfcPcd::sendCmd(
 
 
 /**
- * [RC-S620/S]レスポンス受信
+ * レスポンス受信
  *
  * @param[out]	pResponse		レスポンス(0xd5, cmd+1含む)
  * @param[out]	pResponseLen	pResponseの長さ
@@ -1128,14 +1192,14 @@ bool NfcPcd::recvResp(uint8_t* pResponse, uint16_t* pResponseLen, uint8_t CmdCod
 		}
 		*pResponseLen = res_buf[3];
 	}
-	if(*pResponseLen > RW_RESPONSE_LEN) {
+	if(*pResponseLen > RWBUF_MAX) {
 		LOGE("recvResp 5  len:%d", *pResponseLen);
 		return false;
 	}
 
 	ret_len = DevAccess::read(pResponse, *pResponseLen);
 
-#if 0
+#ifdef ENABLE_FRAME_LOG
 	LOGD("------------");
 	for(int i=0; i<ret_len; i++) {
 		LOGD("[R]%02x ", pResponse[i]);

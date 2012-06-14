@@ -38,8 +38,8 @@ public:
 	static const uint8_t NFCID3_LEN = 10;				///< NFCID3サイズ
 	static const uint8_t MAX_NFCID_LEN = 12;
 
-	static const uint16_t CARD_COMMAND_LEN = 254;		///< コマンドバッファサイズ
-	static const uint16_t CARD_RESPONSE_LEN = 254;		///< レスポンスバッファサイズ
+	static const uint16_t CARD_COMMAND_LEN = 265;		///< コマンドバッファサイズ
+	static const uint16_t CARD_RESPONSE_LEN = 265;		///< レスポンスバッファサイズ
 
 
 public:
@@ -101,26 +101,6 @@ public:
 	Type getType() {
 		return m_Type;
 	}
-	/// @}
-
-
-public:
-	/// @addtogroup gp_Target	ターゲット機能(おまけ)
-	/// @{
-
-	/// ターゲットとしての起動
-    bool initAsTarget(const uint8_t *id2, uint16_t syscode);
-	/// @}
-
-	/// @addtogroup gp_DEP	 Data Exchange Protocol(DEP)
-	/// @{
-
-	/// DEP開始(Initiator)
-    bool jumpForDep(const uint8_t *id2);
-	/// DEPデータ送信
-	bool sendDepData(const void* pData, uint8_t DataLen, bool bSync=true);
-	/// DEPデータ受信
-	bool recvDepData(void* pData, uint8_t* DataLen, bool bSync=true);
 	/// @}
 
 

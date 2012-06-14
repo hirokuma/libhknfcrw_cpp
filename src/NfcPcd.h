@@ -23,15 +23,12 @@ class HkNfcF;
  * NFCのPCDにアクセスするPHY部
  */
 class NfcPcd {
-    friend class HkNfcRw;
-	friend class HkNfcA;
-	friend class HkNfcB;
-	friend class HkNfcF;
-
 public:
-	static NfcPcd* getInstance();
+	static const uint16_t DATA_MAX = 265;		///< データ部最大長
 
-public:
+	static const uint8_t NFCID2_LEN = 8;		///< NFCID2サイズ
+	static const uint8_t NFCID3_LEN = 10;		///< NFCID3サイズ
+
 
 	/// @enum	ActPass
 	/// @brief	inJumpForDep()参照
@@ -48,6 +45,28 @@ public:
         BR_424K		= 0x02		///< 424kbps(FeliCa)
 	};
 
+	/// @struct	DepInitiatorParam
+	/// @brief	NFC-DEPイニシエータパラメータ
+	struct DepInitiatorParam {
+		ActPass Ap;						///< Active/Passive
+		BaudRate Br;					///< 通信速度
+		const uint8_t*		pNfcId3;	///< NFCID3(不要ならnull)
+	};
+	
+	/// @struct	TargetParam
+	/// @brief	ターゲットパラメータ
+	struct TargetParam {
+		uint16_t			SystemCode;	///< [NFC-F]システムコード
+		const uint8_t*		pUId;		///< [NFC-A]UID(3byte)。
+										///  UID 4byteの先頭は強制的に0x04。
+										///  null時には乱数生成する。
+		const uint8_t*		pIDm;		///< [NFC-F]IDm
+										///  null時には6byteを乱数生成する(先頭は01fe)。
+	};
+
+public:
+	static NfcPcd* getInstance();
+
 private:
 	/// @addtogroup gp_port	Device Port Control
 	/// @ingroup gp_NfcPcd
@@ -59,83 +78,6 @@ private:
 	bool isOpened() const { return m_bOpened; }
 	/// クローズ
 	void portClose();
-	/// @}
-
-	/// @addtogroup gp_nfcidi	NFCID3 for Initiator
-	/// @ingroup gp_NfcPcd
-	/// @{
-	/**
-	 * @brief NFCID3の取得(Initiator)
-	 *
-	 * イニシエータ向けNFCID3を取得する。
-	 *
-	 * @return		NFCID3t(10byte)
-	 */
-	const uint8_t* getNfcId3i() const { return m_NfcId3i; }
-
-	/**
-	 * @brief NFCID3の設定(Initiator)
-	 *
-	 * イニシエータ向けNFCID3を設定する。
-	 *
-	 * @param	[in]	pId		設定するNFCID3(10byte)
-	 * @attention		NFCID2iを書き換える
-	 */
-	void setNfcId3i(const uint8_t* pId) { memcpy(m_NfcId3i, pId, HkNfcRw::NFCID3_LEN); }
-
-	/**
-	 * @brief NFCID2の設定(Initiator)
-	 *
-	 * イニシエータ向けNFCID2を設定する。
-	 * NFCID3iは上書きされる。
-	 *
-	 * @param	[in]	pIdm		設定するNFCID8(8byte)
-	 * @attention		NFCID3iを書き換える
-	 */
-	void setNfcId3iAsId2(const uint8_t* pIdm) {
-        memcpy(m_NfcId3i, pIdm, HkNfcRw::NFCID2_LEN);
-		m_NfcId3i[8] = 0x00;
-		m_NfcId3i[9] = 0x00;
-	}
-	/// @}
-
-
-	/// @addtogroup gp_nfcidt	NFCID3 for Target
-	/// @ingroup gp_NfcPcd
-	/// @{
-	/**
-	 * @brief NFCID3の取得(Target)
-	 *
-	 * ターゲット向けNFCID3を取得する
-	 *
-	 * @return		NFCID3i(10byte)
-	 */
-	const uint8_t* getNfcId3t() const { return m_NfcId3t; }
-
-	/**
-	 * @brief NFCID3の設定(Target)
-	 *
-	 * ターゲット向けNFCID3を設定する
-	 *
-	 * @param	[in]	pId		設定するNFCID3(10byte)
-	 * @attention		NFCID2tを書き換える
-	 */
-	void setNfcId3t(const uint8_t* pId) { memcpy(m_NfcId3t, pId, HkNfcRw::NFCID3_LEN); }
-
-	/**
-	 * @brief NFCID2の設定(Target)
-	 *
-	 * ターゲット向けNFCID2を設定する。
-	 * NFCID3tは上書きされる。
-	 *
-	 * @param	[in]	pIdm		設定するNFCID8(8byte)
-	 * @attention		NFCID3tを書き換える
-	 */
-	void setNfcId3tAsId2(const uint8_t* pIdm) {
-        memcpy(m_NfcId3t, pIdm, HkNfcRw::NFCID2_LEN);
-		m_NfcId3t[8] = 0x00;
-		m_NfcId3t[9] = 0x00;
-	}
 	/// @}
 
 
@@ -177,6 +119,8 @@ private:
 	static const int GGS_TXMODE_FALP = 0x05;		///< GetGeneralStatus:FALP
 	bool getGeneralStatus(uint8_t* pResponse);
 	/// CommunicateThruEX
+	bool communicateThruEx();
+	/// CommunicateThruEX
 	bool communicateThruEx(
 			const uint8_t* pCommand, uint8_t CommandLen,
 			uint8_t* pResponse, uint8_t* pResponseLen);
@@ -194,15 +138,15 @@ private:
 
 	/// InJumpForDEP or ImJumpForPSL
 	bool _inJump(uint8_t Cmd,
-			ActPass Ap, BaudRate Br, bool bNfcId3,
+			const DepInitiatorParam* pParam,
 			const uint8_t* pGt, uint8_t GtLen);
 	/// InJumpForDEP
 	bool inJumpForDep(
-			ActPass Ap, BaudRate Br, bool bNfcId3,
+			const DepInitiatorParam* pParam,
 			const uint8_t* pGt, uint8_t GtLen);
 	/// InJumpForPSL
 	bool inJumpForPsl(
-			ActPass Ap, BaudRate Br, bool bNfcId3,
+			const DepInitiatorParam* pParam,
 			const uint8_t* pGt, uint8_t GtLen);
 	/// InListPassiveTarget
 	bool inListPassiveTarget(
@@ -226,8 +170,9 @@ private:
 
 	/// TgInitAsTarget
 	bool tgInitAsTarget(
-			uint16_t SystemCode,
-			const uint8_t* pGt, uint8_t GtLen);
+			const TargetParam* pParam,
+			const uint8_t* pGt, uint8_t GtLen,
+			uint8_t* pResponse=0, uint8_t* pResponseLen=0);
 	/// TgResponseToInitiator
 	bool tgResponseToInitiator(
 			const uint8_t* pData, uint8_t DataLen,
@@ -250,7 +195,7 @@ private:
 
 	/// パケット送受信
 	bool sendCmd(
-			const uint8_t* pCommand, uint8_t CommandLen,
+			const uint8_t* pCommand, uint16_t CommandLen,
 			uint8_t* pResponse, uint16_t* pResponseLen,
 			bool bRecv=true);
 	/// レスポンス受信
@@ -261,9 +206,13 @@ private:
 
 
 private:
-    bool m_bOpened;                             ///< オープンしているかどうか
-    uint8_t m_NfcId3i[HkNfcRw::NFCID3_LEN];		///< NFCID3 for Initiator
-    uint8_t m_NfcId3t[HkNfcRw::NFCID3_LEN];		///< NFCID3 for Target
+	bool m_bOpened;                             ///< オープンしているかどうか
+
+    friend class HkNfcRw;
+	friend class HkNfcA;
+	friend class HkNfcB;
+	friend class HkNfcF;
+
 };
 
 #endif /* NFCPCD_H */
