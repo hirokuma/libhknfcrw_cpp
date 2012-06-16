@@ -84,6 +84,9 @@ bool HkNfcDep::startAsTarget(const uint8_t* pGt/* =0 */, uint8_t GtLen/* =0 */)
 	prm.pGt = pGt;
 	prm.GtLen = GtLen;
 
+	//fAutomaticATR_RES=0
+	m_pNfcPcd->setParameters(0x18);
+
 	// Target時の通信性能向上
 	const uint8_t target[] = { 0x63, 0x0d, 0x08 };
 	m_pNfcPcd->writeRegister(target, sizeof(target));
@@ -119,7 +122,7 @@ bool HkNfcDep::startAsTarget(const uint8_t* pGt/* =0 */, uint8_t GtLen/* =0 */)
 		LOGD("106kbps passive\n");
 		break;
 	case 0x01:
-		LOGD("106kbps active\n");
+		LOGD("Active\n");
 		break;
 	case 0x02:
 		LOGD("212k/424kbps passive\n");
@@ -137,6 +140,22 @@ bool HkNfcDep::startAsTarget(const uint8_t* pGt/* =0 */, uint8_t GtLen/* =0 */)
 		LOGD("%02x \n", pIniCmd[i]);
 	}
 #endif
+
+	if((br == 0x00) && (comm == 0x01)) {
+		// 106k active
+
+		// 特性を元に戻す
+		const uint8_t normal[] = { 0x63, 0x0d, 0x00 };
+		m_pNfcPcd->writeRegister(normal, sizeof(normal));
+	} else if((br == 0x00) && (comm == 0x00)) {
+		// 106k passive
+
+		// 特性を元に戻す
+		const uint8_t normal[] = { 0x63, 0x0d, 0x00, 0x63, 0x01, 0x3b };
+		m_pNfcPcd->writeRegister(normal, sizeof(normal));
+	}
+
+	m_pNfcPcd->tgSetGeneralBytes(&prm);
 
 	//モード確認
 	bool ret = m_pNfcPcd->getGeneralStatus(m_pHkNfcRw->s_ResponseBuf);

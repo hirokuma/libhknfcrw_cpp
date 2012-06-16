@@ -179,6 +179,8 @@ public:
 	bool tgInitAsTarget(
 			const TargetParam* pParam,
 			uint8_t* pResponse=0, uint8_t* pResponseLen=0);
+	/// TgSetGeneralBytes
+	bool tgSetGeneralBytes(const TargetParam* pParam);
 	/// TgResponseToInitiator
 	bool tgResponseToInitiator(
 			const uint8_t* pData, uint8_t DataLen,

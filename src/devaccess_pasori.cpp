@@ -1,6 +1,6 @@
 #include <cstring>
 #include <sys/types.h>
-#include <libusb-1.0/libusb.h>
+#include <libusbx-1.0/libusb.h>
 
 #include "devaccess.h"
 #include "nfclog.h"
@@ -18,8 +18,8 @@ namespace {
 	libusb_context*			m_pContext;
 	libusb_device_handle*	m_pHandle;
 
-	uint8_t m_EndPntIn = 0;
-	uint8_t m_EndPntOut = 0;
+	uint8_t m_EndPntIn = 0xff;
+	uint8_t m_EndPntOut = 0xff;
 
 	int m_ReadSize;
 	uint8_t m_ReadBuf[256];
@@ -50,7 +50,7 @@ namespace {
 
 	bool librcs370::open()
 	{
-		qDebug("%s\n", __PRETTY_FUNCTION__);
+		//LOGD("%s\n", __PRETTY_FUNCTION__);
 
 		if(m_pContext) {
 			// open済み
@@ -108,7 +108,7 @@ namespace {
 #else
 		m_pHandle = libusb_open_device_with_vid_pid(NULL, VID, PID);
 		if(m_pHandle == NULL) {
-			qDebug("cannot open\n");
+			LOGE("cannot open\n");
 			close();
 			return false;
 		}
@@ -127,11 +127,12 @@ namespace {
 				const libusb_interface_descriptor& idesc = inter.altsetting[alt];
 				for(int desc = 0; desc < idesc.bNumEndpoints; desc++) {
 					const libusb_endpoint_descriptor& EndPnt = idesc.endpoint[desc];
-					qDebug("type : %x / addr : %x\n", EndPnt.bDescriptorType, EndPnt.bEndpointAddress);
 					if(EndPnt.bEndpointAddress & LIBUSB_ENDPOINT_IN) {
+						LOGD("[IN]type : %x / addr : %x\n", EndPnt.bDescriptorType, EndPnt.bEndpointAddress);
 						m_EndPntIn = EndPnt.bEndpointAddress;
 					}
 					else {
+						LOGD("[OUT]type : %x / addr : %x\n", EndPnt.bDescriptorType, EndPnt.bEndpointAddress);
 						m_EndPntOut = EndPnt.bEndpointAddress;
 					}
 				}

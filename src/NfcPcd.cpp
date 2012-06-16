@@ -384,8 +384,9 @@ bool NfcPcd::writeRegister(const uint8_t* pCommand, uint8_t CommandLen)
 
 	uint16_t res_len;
 	bool ret = sendCmd(s_NormalFrmBuf, 2 + CommandLen, s_ResponseBuf, &res_len);
-	if(!ret || (res_len != RESHEAD_LEN)) {
-		LOGE("writeReg ret=%d\n", ret);
+	if(!ret || (res_len != RESHEAD_LEN + 2)
+	  || s_ResponseBuf[2] != 0x00 || s_ResponseBuf[3] != 0x00) {
+		LOGE("writeReg ret=%d [%02x][%02x]\n", ret, s_ResponseBuf[2], s_ResponseBuf[3]);
 	}
 
 	return true;
@@ -595,12 +596,13 @@ bool NfcPcd::_inJump(uint8_t Cmd,
 	s_NormalFrmBuf[4] = 0x00;		//Next
 	uint8_t len = 5;
 	if(pParam->Ap == AP_PASSIVE) {
-		s_NormalFrmBuf[4] |= 0x01;
 		if(pParam->Br == BR_106K) {
-			const uint8_t known_id[4] = { 0x08, 0x01, 0x02, 0x03 };
-			memcpy(&(s_NormalFrmBuf[len]), known_id, sizeof(known_id));
-			len += sizeof(known_id);
+//			s_NormalFrmBuf[4] |= 0x01;
+//			const uint8_t known_id[4] = { 0x08, 0x01, 0x02, 0x03 };
+//			memcpy(&(s_NormalFrmBuf[len]), known_id, sizeof(known_id));
+//			len += sizeof(known_id);
 		} else {
+			s_NormalFrmBuf[4] |= 0x01;
 			const uint8_t pol_req[5] = { 0x00, 0xff, 0xff, 0x01, 0x00 };
 			memcpy(&(s_NormalFrmBuf[len]), pol_req, sizeof(pol_req));
 			len += sizeof(pol_req);
@@ -875,7 +877,7 @@ bool NfcPcd::tgInitAsTarget(
 
 	//General Bytes
 	if(pParam->GtLen) {
-	s_NormalFrmBuf[len++] = pParam->GtLen;	//Gt
+		s_NormalFrmBuf[len++] = pParam->GtLen;	//Gt
 		memcpy(s_NormalFrmBuf + len, pParam->pGt, pParam->GtLen);
 		len += pParam->GtLen;
 	}
@@ -906,6 +908,25 @@ bool NfcPcd::tgInitAsTarget(
 		//Activated情報以下
 		*pResponseLen = (uint8_t)(res_len - 4);
 		memcpy(pResponse, s_ResponseBuf + 2, *pResponseLen);
+	}
+
+	return true;
+}
+
+
+bool NfcPcd::tgSetGeneralBytes(const TargetParam* pParam)
+{
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x92;				//TgSetGeneralBytes
+	if(pParam->GtLen) {
+		memcpy(s_NormalFrmBuf + 2, pParam->pGt, pParam->GtLen);
+	}
+
+	uint16_t res_len;
+	bool ret = sendCmd(s_NormalFrmBuf, 2 + pParam->GtLen, s_ResponseBuf, &res_len);
+	if(!ret || (res_len < RESHEAD_LEN+1) || (s_ResponseBuf[POS_RESDATA] != 0x00)) {
+		LOGE("tgSetGeneralBytes ret=%d / len=%d / code=%02x\n", ret, res_len, s_ResponseBuf[POS_RESDATA]);
+		return false;
 	}
 
 	return true;
