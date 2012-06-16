@@ -17,11 +17,6 @@ class NfcPcd;
  */
 class HkNfcRw {
 public:
-	friend class HkNfcA;
-	friend class HkNfcB;
-	friend class HkNfcF;
-
-public:
 	/**
 	 * @enum	Type
 	 * @brief	Polling時のNFCカードタイプ
@@ -112,10 +107,17 @@ private:
     uint8_t		s_ResponseBuf[CARD_RESPONSE_LEN];	///< PCDからの受信バッファ
     uint8_t		m_NfcId[MAX_NFCID_LEN];		///< 取得したNFCID
 	uint8_t		m_NfcIdLen;					///< 取得済みのNFCID長。0の場合は未取得。
+
+
+	friend class HkNfcA;
+	friend class HkNfcB;
+	friend class HkNfcF;
+	friend class HkNfcDep;
 };
 
 #include "HkNfcA.h"
 #include "HkNfcB.h"
 #include "HkNfcF.h"
+#include "HkNfcDep.h"
 
 #endif // QHKNFCRW_H

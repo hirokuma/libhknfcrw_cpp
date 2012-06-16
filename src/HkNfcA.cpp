@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "HkNfcA.h"
-#include "nfcpcd.h"
+#include "NfcPcd.h"
 
 #define LOG_TAG "HkNfcA"
 #include "nfclog.h"

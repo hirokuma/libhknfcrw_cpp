@@ -51,17 +51,21 @@ public:
 		ActPass Ap;						///< Active/Passive
 		BaudRate Br;					///< 通信速度
 		const uint8_t*		pNfcId3;	///< NFCID3(不要ならnull)
+		const uint8_t*		pGt;		///< GeneralBytes(GtLenが0:未使用)
+		uint8_t				GtLen;		///< pGtサイズ(不要なら0)
 	};
 	
 	/// @struct	TargetParam
 	/// @brief	ターゲットパラメータ
 	struct TargetParam {
-		uint16_t			SystemCode;	///< [NFC-F]システムコード
-		const uint8_t*		pUId;		///< [NFC-A]UID(3byte)。
-										///  UID 4byteの先頭は強制的に0x04。
-										///  null時には乱数生成する。
-		const uint8_t*		pIDm;		///< [NFC-F]IDm
-										///  null時には6byteを乱数生成する(先頭は01fe)。
+//		uint16_t			SystemCode;	///< [NFC-F]システムコード
+//		const uint8_t*		pUId;		///< [NFC-A]UID(3byte)。
+//										///  UID 4byteの先頭は強制的に0x04。
+//										///  null時には乱数生成する。
+//		const uint8_t*		pIDm;		///< [NFC-F]IDm
+//										///  null時には6byteを乱数生成する(先頭は01fe)。
+		const uint8_t*		pGt;		///< GeneralBytes(GtLenが0:未使用)
+		uint8_t				GtLen;		///< pGtサイズ(不要なら0)
 	};
 
 public:
@@ -85,6 +89,7 @@ private:
 	NfcPcd();
 	virtual ~NfcPcd();
 
+public:
 	/// @addtogroup gp_commoncmd	Common Command
 	/// @ingroup gp_NfcPcd
 	/// @{
@@ -103,6 +108,8 @@ private:
 			uint8_t* pResponse, uint8_t* pResponseLen);
 	/// SetParameters
 	bool setParameters(uint8_t val);
+	/// WriteRegister
+	bool writeRegister(const uint8_t* pCommand, uint8_t CommandLen);
 	/// GetFirmware
 	static const int GF_IC = 0;				///< GetFirmware:IC
 	static const int GF_VER = 1;			///< GetFirmware:Ver
@@ -137,17 +144,17 @@ private:
 	/// @{
 
 	/// InJumpForDEP or ImJumpForPSL
+private:
 	bool _inJump(uint8_t Cmd,
-			const DepInitiatorParam* pParam,
-			const uint8_t* pGt, uint8_t GtLen);
+			const DepInitiatorParam* pParam);
+
+public:
 	/// InJumpForDEP
 	bool inJumpForDep(
-			const DepInitiatorParam* pParam,
-			const uint8_t* pGt, uint8_t GtLen);
+			const DepInitiatorParam* pParam);
 	/// InJumpForPSL
 	bool inJumpForPsl(
-			const DepInitiatorParam* pParam,
-			const uint8_t* pGt, uint8_t GtLen);
+			const DepInitiatorParam* pParam);
 	/// InListPassiveTarget
 	bool inListPassiveTarget(
 			const uint8_t* pInitData, uint8_t InitLen,
@@ -171,7 +178,6 @@ private:
 	/// TgInitAsTarget
 	bool tgInitAsTarget(
 			const TargetParam* pParam,
-			const uint8_t* pGt, uint8_t GtLen,
 			uint8_t* pResponse=0, uint8_t* pResponseLen=0);
 	/// TgResponseToInitiator
 	bool tgResponseToInitiator(

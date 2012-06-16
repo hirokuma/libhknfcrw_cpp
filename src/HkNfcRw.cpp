@@ -71,6 +71,7 @@ bool HkNfcRw::open()
 				s_ResponseBuf[NfcPcd::GF_REV], s_ResponseBuf[NfcPcd::GF_SUPPORT]);
 		}
 
+#if 0
 		ret = m_pNfcPcd->getGeneralStatus(s_ResponseBuf);
 		if(ret) {
 			LOGD("Err:%02x / Field:%02x / NbTg:%02x / Tg:%02x / TxMode:%02x\n",
@@ -81,6 +82,7 @@ bool HkNfcRw::open()
 				s_ResponseBuf[NfcPcd::GGS_TXMODE]);
 		}
 		ret = true;		//気にしない
+#endif
 
 #if 0
 		uint8_t res_len;
@@ -90,7 +92,6 @@ bool HkNfcRw::open()
 		}
 		ret = true;		//気にしない
 #endif
-		msleep(1000);
 
 	} else {
 		close();

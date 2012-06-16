@@ -13,8 +13,8 @@
 #include "nfclog.h"
 
 // デバッグ設定
-#define DBG_WRITEDATA
-#define DBG_READDATA
+//#define DBG_WRITEDATA
+//#define DBG_READDATA
 
 
 /**

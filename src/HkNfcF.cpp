@@ -1,5 +1,5 @@
 #include "HkNfcF.h"
-#include "nfcpcd.h"
+#include "NfcPcd.h"
 #include "misc.h"
 
 #define LOG_TAG "HkNfcF"
