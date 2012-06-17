@@ -5,8 +5,9 @@
 
 
 /**
- * @class	HkNfcDep
- * @brief	NFC-DEPアクセス
+ * @class		HkNfcDep
+ * @brief		NFC-DEPアクセス
+ * @defgroup	gp_NfcDep	NfcDepクラス
  */
 class HkNfcDep {
 private:
@@ -37,8 +38,36 @@ public:
 	virtual ~HkNfcDep();
 
 public:
+	/// @addtogroup gp_depinit	NFC-DEP(Initiator)
+	/// @ingroup gp_NfcDep
+	/// @{
+
+	/// InJumpForDEP
 	bool startAsInitiator(DepMode mode, const uint8_t* pGt = 0, uint8_t GtLen = 0);
+	/// InDataExchange
+	bool sendAsInitiator(
+			const void* pCommand, uint8_t CommandLen,
+			void* pResponse, uint8_t* pResponseLen);
+	/// RLS_REQ
+	bool stopAsInitiator();
+	/// @}
+
+public:
+	/// @addtogroup gp_depinit	NFC-DEP(Target)
+	/// @ingroup gp_NfcDep
+	/// @{
+
+	/// TgInitTarget
 	bool startAsTarget(const uint8_t* pGt = 0, uint8_t GtLen = 0);
+	/// TgGetData
+	bool recvAsTarget(void* pCommand, uint8_t* pCommandLen);
+	/// TgSetData
+	bool respAsTarget(const void* pResponse, uint8_t ResponseLen);
+private:
+	/// RLS_RES
+	bool stopAsTarget(uint8_t did);
+	/// @}
+
 
 private:
 	HkNfcRw*		m_pHkNfcRw;

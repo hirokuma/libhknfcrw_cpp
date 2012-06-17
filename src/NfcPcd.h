@@ -8,11 +8,11 @@
 
 #include "HkNfcRw.h"
 
-// forward
-class HkNfcRw;
-class HkNfcA;
-class HkNfcB;
-class HkNfcF;
+//// forward
+//class HkNfcRw;
+//class HkNfcA;
+//class HkNfcB;
+//class HkNfcF;
 
 
 /**

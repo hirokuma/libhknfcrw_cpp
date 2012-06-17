@@ -13,7 +13,7 @@ namespace {
 
 	const uint16_t VID = 0x054c;
 	const uint16_t PID = 0x02e1;
-	const int TIMEOUT = 500;
+	const unsigned int TIMEOUT = 65535 * 2;
 
 	libusb_context*			m_pContext;
 	libusb_device_handle*	m_pHandle;

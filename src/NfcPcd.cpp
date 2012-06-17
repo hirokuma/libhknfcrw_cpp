@@ -156,6 +156,11 @@ bool NfcPcd::init()
 
 	sendAck();
 
+	ret = reset();
+	if(!ret) {
+		return false;
+	}
+
 	// RF通信のT/O
 	s_NormalFrmBuf[0] = 0xd4;
 	s_NormalFrmBuf[1] = 0x32;
@@ -187,11 +192,6 @@ bool NfcPcd::init()
 	ret = sendCmd(s_NormalFrmBuf, 4, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != RESHEAD_LEN)) {
 		LOGE("d4 32 81(%d)%d\n", ret, res_len);
-		return false;
-	}
-
-	ret = reset();
-	if(!ret) {
 		return false;
 	}
 
@@ -384,9 +384,15 @@ bool NfcPcd::writeRegister(const uint8_t* pCommand, uint8_t CommandLen)
 
 	uint16_t res_len;
 	bool ret = sendCmd(s_NormalFrmBuf, 2 + CommandLen, s_ResponseBuf, &res_len);
-	if(!ret || (res_len != RESHEAD_LEN + 2)
-	  || s_ResponseBuf[2] != 0x00 || s_ResponseBuf[3] != 0x00) {
-		LOGE("writeReg ret=%d [%02x][%02x]\n", ret, s_ResponseBuf[2], s_ResponseBuf[3]);
+	if(!ret || (res_len < RESHEAD_LEN + CommandLen/2)) {
+		LOGE("writeReg ret=%d res_len=%d\n", ret, res_len);
+	} else {
+		for(int i=0; i<CommandLen/2; i++) {
+			if(s_ResponseBuf[2+i] != 0x00) {
+				LOGE("writeReg [%02x]\n", s_ResponseBuf[2+i]);
+				return false;
+			}
+		}
 	}
 
 	return true;
@@ -544,11 +550,8 @@ bool NfcPcd::communicateThruEx(
 	s_NormalFrmBuf[2] = l16(Timeout);
 	s_NormalFrmBuf[3] = h16(Timeout);
 	if(CommandLen) {
-		s_NormalFrmBuf[4] = (uint8_t)(CommandLen + 1);
-		memcpy(s_NormalFrmBuf + 5, pCommand, CommandLen);
-		CommandLen += 5;
-	} else {
-		CommandLen = 4;
+		memcpy(s_NormalFrmBuf + 4, pCommand, CommandLen);
+		CommandLen += 4;
 	}
 
 	uint16_t res_len;
@@ -708,6 +711,7 @@ bool NfcPcd::inListPassiveTarget(
  * @param[in]	CommandLen		pCommandの長さ
  * @param[out]	pResponse		レスポンス
  * @param[out]	pResponseLen	pResponseの長さ
+ * @param[in]	bCoutinue		MIフラグを立てるかどうか
  *
  * @retval		true			成功
  * @retval		false			失敗
@@ -717,6 +721,11 @@ bool NfcPcd::inDataExchange(
 			uint8_t* pResponse, uint8_t* pResponseLen,
 			bool bCoutinue/*=false*/)
 {
+	if(CommandLen > 252) {
+		LOGE("Too large\n");
+		return false;
+	}
+
 	s_NormalFrmBuf[0] = 0xd4;
 	s_NormalFrmBuf[1] = 0x40;			//InDataExchange
 	s_NormalFrmBuf[2] = 0x01;			//Tg
@@ -770,6 +779,31 @@ bool NfcPcd::inCommunicateThru(
 
 	*pResponseLen = res_len - (RESHEAD_LEN+1);
 	memcpy(pResponse, s_ResponseBuf + RESHEAD_LEN+1, *pResponseLen);
+
+	return true;
+}
+
+
+/**
+ * InRelease
+ *
+ * DEP用。Targetの解放
+ *
+ * @retval		true			成功
+ * @retval		false			失敗
+ */
+bool NfcPcd::inRelease()
+{
+	s_NormalFrmBuf[0] = 0xd4;
+	s_NormalFrmBuf[1] = 0x52;			//InRelease
+	s_NormalFrmBuf[2] = 0x00;
+
+	uint16_t res_len;
+	bool ret = sendCmd(s_NormalFrmBuf, 3, s_ResponseBuf, &res_len);
+	if(!ret || (res_len != RESHEAD_LEN+1) || (s_ResponseBuf[POS_RESDATA] != 0x00)) {
+		LOGE("inRelease ret=%d / len=%d / code=%02x\n", ret, res_len, s_ResponseBuf[POS_RESDATA]);
+		return false;
+	}
 
 	return true;
 }
@@ -916,6 +950,11 @@ bool NfcPcd::tgInitAsTarget(
 
 bool NfcPcd::tgSetGeneralBytes(const TargetParam* pParam)
 {
+	if(pParam->GtLen > 48) {
+		LOGE("Too large\n");
+		return false;
+	}
+
 	s_NormalFrmBuf[0] = 0xd4;
 	s_NormalFrmBuf[1] = 0x92;				//TgSetGeneralBytes
 	if(pParam->GtLen) {
@@ -1053,6 +1092,11 @@ bool NfcPcd::tgGetData(uint8_t* pResponse, uint8_t* pResponseLen)
  */
 bool NfcPcd::tgSetData(const uint8_t* pCommand, uint8_t CommandLen)
 {
+	if(CommandLen > 252) {
+		LOGE("Too large\n");
+		return false;
+	}
+
 	s_NormalFrmBuf[0] = 0xd4;
 	s_NormalFrmBuf[1] = 0x8e;			//TgSetData
 	memcpy(s_NormalFrmBuf + 2, pCommand, CommandLen);
@@ -1067,31 +1111,6 @@ bool NfcPcd::tgSetData(const uint8_t* pCommand, uint8_t CommandLen)
 	return true;
 }
 
-
-/**
- * InRelease
- *
- * DEP用。Targetの解放
- *
- * @retval		true			成功
- * @retval		false			失敗
- */
-bool NfcPcd::inRelease()
-{
-	const uint8_t CMD[] = { 0xd4, 0x52, 0x01 };
-	s_NormalFrmBuf[0] = 0xd4;
-	s_NormalFrmBuf[1] = 0x52;			//InRelease
-	s_NormalFrmBuf[2] = 0x01;
-
-	uint16_t res_len;
-	bool ret = sendCmd(s_NormalFrmBuf, 3, s_ResponseBuf, &res_len);
-	if(!ret || (res_len != RESHEAD_LEN+1) || (s_ResponseBuf[POS_RESDATA] != 0x00)) {
-		LOGE("inRelease ret=%d / len=%d / code=%02x\n", ret, res_len, s_ResponseBuf[POS_RESDATA]);
-		return false;
-	}
-
-	return true;
-}
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -1166,6 +1185,13 @@ bool NfcPcd::sendCmd(
 	uint16_t ret_len = DevAccess::read(res_buf, 6);
 	if((ret_len != 6) || (memcmp(res_buf, ACK, sizeof(ACK)) != 0)) {
 		LOGE("sendCmd 0: ret=%d\n", ret_len);
+#ifdef ENABLE_FRAME_LOG
+		LOGD("------------\n");
+		for(int i=0; i<ret_len; i++) {
+			LOGD("[ack]%02x \n", res_buf[i]);
+		}
+		LOGD("------------\n");
+#endif
 		sendAck();
 		return false;
 	}
@@ -1262,6 +1288,7 @@ bool NfcPcd::recvResp(uint8_t* pResponse, uint16_t* pResponseLen, uint8_t CmdCod
  */
 void NfcPcd::sendAck()
 {
+	LOGD("sendAck\n");
 	DevAccess::write(ACK, sizeof(ACK));
 
 	// wait 1ms

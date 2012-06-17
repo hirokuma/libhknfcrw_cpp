@@ -133,6 +133,7 @@ bool HkNfcDep::startAsTarget(const uint8_t* pGt/* =0 */, uint8_t GtLen/* =0 */)
 	}
 #endif
 
+
 	const uint8_t* pIniCmd = &(m_pHkNfcRw->s_ResponseBuf[1]);
 	uint8_t IniCmdLen = res_len - 1;
 #if 1
@@ -140,6 +141,11 @@ bool HkNfcDep::startAsTarget(const uint8_t* pGt/* =0 */, uint8_t GtLen/* =0 */)
 		LOGD("%02x \n", pIniCmd[i]);
 	}
 #endif
+
+	if((pIniCmd[0] >= 3) && (pIniCmd[1] == 0xd4) && (pIniCmd[2] == 0x0a)) {
+		// RLS_REQなら、終わらせる
+		stopAsTarget(pIniCmd[3]);
+	}
 
 	if((br == 0x00) && (comm == 0x01)) {
 		// 106k active
@@ -167,48 +173,88 @@ bool HkNfcDep::startAsTarget(const uint8_t* pGt/* =0 */, uint8_t GtLen/* =0 */)
 	}
 
 	return ret;
+}
 
-#if 0
-    //DEP
-	uint8_t cmd[] = { 0xfe, 0xdc, 0xba, 0x98 };
-	uint8_t cmd_len = uint8_t(sizeof(cmd));
-	uint8_t res[256];
-	uint8_t res_len = 0;
-	if(m_pNfcPcd->tgGetData(res, &res_len)) {
-		LOGD("read : ");
-		for(int i=0; i<res_len; i++) {
-			LOGD("%02x ", res[i]);
-		}
-		LOGD("----------1-----------------------\n");
 
-		if(!m_pNfcPcd->tgSetData(cmd, cmd_len)) {
-			//break;
-		}
-		LOGD("----------2-----------------------\n");
-	}
-	//m_pNfcPcd->inRelease();
-#endif
+/**
+ * [DEP-Initiator]データ送信
+ * 
+ * @param	[in]	pCommand		Targetへの送信データ
+ * @param	[in]	CommandLen		Targetへの送信データサイズ
+ * @param	[out]	pResponse		Targetからの返信データ
+ * @param	[out]	pResponseLen	Targetからの返信データサイズ
+ * @retval	true	成功
+ * @retval	false	失敗(pResponse/pResponseLenは無効)
+ */
+bool HkNfcDep::sendAsInitiator(
+			const void* pCommand, uint8_t CommandLen,
+			void* pResponse, uint8_t* pResponseLen)
+{
+	bool b = m_pNfcPcd->inDataExchange(
+					reinterpret_cast<const uint8_t*>(pCommand), CommandLen,
+					reinterpret_cast<uint8_t*>(pResponse), pResponseLen);
+	return b;
+}
 
-#if 0
-    // card emulation
-    if(m_pHkNfcRw->s_ResponseBuf[1] == 0x0c) {
-		LOGD("send Request SysCode res.\n");
-		uint8_t cmd[13];
-		cmd[0] = 13;
-		cmd[1] = 0x0d;		//Request System Code response
-		std::memcpy(&cmd[2], id2, NFCID2_LEN);
-		cmd[10] = 0x01;
-		cmd[11] = h16(syscode);
-		cmd[12] = l16(syscode);
-		uint8_t cmd_len = uint8_t(sizeof(cmd));
-		uint8_t res[256];
-		uint8_t res_len = 0;
-		if(m_pNfcPcd->tgResponseToInitiator(cmd, cmd_len, res, &res_len)) {
-			LOGD("read : ");
-			for(int i=0; i<res_len; i++) {
-				LOGD("%02x ", res[i]);
-			}
-		}
-	}
-#endif
+
+bool HkNfcDep::stopAsInitiator()
+{
+	msleep(100);
+
+	const uint16_t timeout = 2000;
+	m_pHkNfcRw->s_CommandBuf[0] = 3;
+	m_pHkNfcRw->s_CommandBuf[1] = 0xd4;
+	m_pHkNfcRw->s_CommandBuf[2] = 0x0a;		// RLS_REQ
+	m_pHkNfcRw->s_CommandBuf[3] = 0x00;		// DID
+	uint8_t res_len;
+	bool b = m_pNfcPcd->communicateThruEx(timeout,
+					m_pHkNfcRw->s_CommandBuf, 4,
+					m_pHkNfcRw->s_ResponseBuf, &res_len);
+	return b;
+}
+
+
+/**
+ * [DEP-Target]データ受信
+ * 
+ * @param	[out]	pCommand	Initiatorからの送信データ
+ * @param	[out]	CommandLen	Initiatorからの送信データサイズ
+ * @retval	true	成功
+ * @retval	false	失敗(pCommand/pCommandLenは無効)
+ */
+bool HkNfcDep::recvAsTarget(void* pCommand, uint8_t* pCommandLen)
+{
+	uint8_t* p = reinterpret_cast<uint8_t*>(pCommand);
+	bool b = m_pNfcPcd->tgGetData(p, pCommandLen);
+	return b;
+}
+
+/**
+ * [DEP-Target]データ送信
+ * 
+ * @param	[in]	pResponse		Initiatorへの返信データ
+ * @param	[in]	ResponseLen		Initiatorへの返信データサイズ
+ * @retval	true	成功
+ * @retval	false	失敗
+ */
+bool HkNfcDep::respAsTarget(const void* pResponse, uint8_t ResponseLen)
+{
+	bool b = m_pNfcPcd->tgSetData(
+					reinterpret_cast<const uint8_t*>(pResponse), ResponseLen);
+	return b;
+}
+
+
+bool HkNfcDep::stopAsTarget(uint8_t did)
+{
+	const uint16_t timeout = 2000;
+	m_pHkNfcRw->s_CommandBuf[0] = 3;
+	m_pHkNfcRw->s_CommandBuf[1] = 0xd5;
+	m_pHkNfcRw->s_CommandBuf[2] = 0x0b;		// RLS_REQ
+	m_pHkNfcRw->s_CommandBuf[3] = did;		// DID
+	uint8_t res_len;
+	bool b = m_pNfcPcd->communicateThruEx(timeout,
+					m_pHkNfcRw->s_CommandBuf, 4,
+					m_pHkNfcRw->s_ResponseBuf, &res_len);
+	return b;
 }
