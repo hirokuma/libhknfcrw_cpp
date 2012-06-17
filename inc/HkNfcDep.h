@@ -23,6 +23,8 @@ private:
 
 public:
 	enum DepMode {
+		DEP_NONE = 0x00000000,
+		
 		ACT_106K = _ACT | _BR106K,
 		PSV_106K = _PSV | _BR106K,
 		
@@ -32,6 +34,7 @@ public:
 		ACT_424K = _ACT | _BR424K,
 		PSV_424K = _PSV | _BR424K,
 	};
+
 
 public:
 	HkNfcDep(HkNfcRw* pRw);
@@ -43,7 +46,8 @@ public:
 	/// @{
 
 	/// InJumpForDEP
-	bool startAsInitiator(DepMode mode, const uint8_t* pGt = 0, uint8_t GtLen = 0);
+	bool startAsInitiator(DepMode mode, const uint8_t* pGt = 0, uint8_t GtLen = 0,
+							bool (*pFunc)(const uint8_t* pRecv, uint8_t RecvLen) = 0);
 	/// InDataExchange
 	bool sendAsInitiator(
 			const void* pCommand, uint8_t CommandLen,
@@ -63,15 +67,27 @@ public:
 	bool recvAsTarget(void* pCommand, uint8_t* pCommandLen);
 	/// TgSetData
 	bool respAsTarget(const void* pResponse, uint8_t ResponseLen);
-private:
-	/// RLS_RES
-	bool stopAsTarget(uint8_t did);
 	/// @}
+
+
+public:
+	/// @addtogroup gp_depstat	Status
+	/// @ingroup gp_NfcDep
+	/// @{
+	DepMode getDepMode() const { return m_DepMode; }
+	/// @}
+
+
+public:
+	bool startLlcpInitiator(DepMode mode);
+	bool startLlcpTarget();
 
 
 private:
 	HkNfcRw*		m_pHkNfcRw;
 	NfcPcd*			m_pNfcPcd;
+	DepMode			m_DepMode;
+	bool			m_bInitiator;
 
 	friend class HkNfcRw;
 };

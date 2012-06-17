@@ -195,18 +195,47 @@ bool NfcPcd::init()
 		return false;
 	}
 
-#if 0
 	// DEPターゲットでのタイムアウト
 	s_NormalFrmBuf[2] = 0x82;		// DEP Target Timeout
 	s_NormalFrmBuf[3] = 0x08;		// gbyAtrResTo
+										// 00h :    302us
+										// 01h :    604us
+										// 02h :   1.208ms
+										// 03h :   2.417ms
+										// 04h :   4.833ms
+										// 05h :   9.666ms
+										// 06h :  19.332ms
+										// 07h :  38.664ms
+										// 08h :  77.329ms ★
+										// 09h : 154.657ms
+										// 0ah : 309.314ms
+										// 0bh : 618.629ms
+										// 0ch :   1.237s
+										// 0dh :   2.474s
+										// 0eh :   4.949s
 	s_NormalFrmBuf[4] = 0x01;		// gbyRtox
+										// RWT x gbyRtox
 	s_NormalFrmBuf[5] = 0x08;		// gbyTargetStoTo
+										// 00h : 951us
+										// 01h : 1.1ms
+										// 02h : 1.4ms
+										// 03h : 2.0ms
+										// 04h : 3.2ms
+										// 05h : 5.6ms
+										// 06h : 10.4ms
+										// 07h : 20.1ms
+										// 08h : 39.4ms ★
+										// 09h : 78.1ms
+										// 0ah : 155.4ms
+										// 0bh : 310.0ms
+										// 0ch : 619.sms
+										// 0dh : 1.237s
+										// 0eh : 2.474s
 	ret = sendCmd(s_NormalFrmBuf, 6, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != RESHEAD_LEN)) {
 		LOGE("d4 32 82(%d)%d\n", ret, res_len);
 		//return false;
 	}
-#endif
 
 
 #if 0
@@ -587,8 +616,7 @@ bool NfcPcd::communicateThruEx(
  *
  * @param[in]	pParam		DEP initiatorパラメータ
  */
-bool NfcPcd::_inJump(uint8_t Cmd,
-		const DepInitiatorParam* pParam)
+bool NfcPcd::_inJump(uint8_t Cmd, DepInitiatorParam* pParam)
 {
 	//LOGD("%s", __PRETTY_FUNCTION__);
 
@@ -622,20 +650,17 @@ bool NfcPcd::_inJump(uint8_t Cmd,
 		len += pParam->GtLen;
 	}
 
-//	for(int i=0; i<len; i++) {
-//		LOGD("%02x ", s_NormalFrmBuf[i]);
-//	}
-
 	uint16_t res_len;
 	bool ret = sendCmd(s_NormalFrmBuf, len, s_ResponseBuf, &res_len);
-
-//	for(int i=0; i<res_len; i++) {
-//		LOGD("%02x ", s_ResponseBuf[i]);
-//	}
 
 	if(!ret || (res_len < RESHEAD_LEN+17)) {
 		LOGE("inJumpForDep ret=%d/len=%d\n", ret, res_len);
 		return false;
+	}
+
+	if(pParam->pResponse) {
+		pParam->ResponseLen = (uint8_t)(res_len - (RESHEAD_LEN + 1));
+		memcpy(pParam->pResponse, s_ResponseBuf + RESHEAD_LEN+1, pParam->ResponseLen);
 	}
 
 	return true;
@@ -645,12 +670,9 @@ bool NfcPcd::_inJump(uint8_t Cmd,
 /**
  * InJumpForDEP
  *
- * @param[in]	pParam		DEP initiatorパラメータ
- * @param[in]	pGt			Gt(Initiator)
- * @param[in]	GtLen		Gtサイズ
+ * @param[in/out]	pParam		DEP initiatorパラメータ
  */
-bool NfcPcd::inJumpForDep(
-		const DepInitiatorParam* pParam)
+bool NfcPcd::inJumpForDep(DepInitiatorParam* pParam)
 {
 	//LOGD("%s", __PRETTY_FUNCTION__);
 	return _inJump(0x56, pParam);
@@ -660,12 +682,9 @@ bool NfcPcd::inJumpForDep(
 /**
  * InJumpForPSL
  *
- * @param[in]	pParam		DEP initiatorパラメータ
- * @param[in]	pGt			Gt(Initiator)
- * @param[in]	GtLen		Gtサイズ
+ * @param[in/out]	pParam		DEP initiatorパラメータ
  */
-bool NfcPcd::inJumpForPsl(
-		const DepInitiatorParam* pParam)
+bool NfcPcd::inJumpForPsl(DepInitiatorParam* pParam)
 {
 	//LOGD("%s", __PRETTY_FUNCTION__);
 	return _inJump(0x46, pParam);
@@ -820,16 +839,12 @@ bool NfcPcd::inRelease()
  * ターゲットとして起動する.
  * 応答はTgResponseToInitiatorで返す.
  *
- * [in]		pParam			ターゲットパラメータ
- * [out]	pResponse		レスポンスバッファ(Activated情報以下を返す)
- * [out]	pResponseLen	レスポンス長
+ * [in/out]		pParam			ターゲットパラメータ
  * 
  * @retval		true			成功
  * @retval		false			失敗
  */
-bool NfcPcd::tgInitAsTarget(
-			const TargetParam* pParam,
-			uint8_t* pResponse/*=0*/, uint8_t* pResponseLen/*=0*/)
+bool NfcPcd::tgInitAsTarget(TargetParam* pParam)
 {
 	//LOGD("%s", __PRETTY_FUNCTION__);
 
@@ -928,20 +943,10 @@ bool NfcPcd::tgInitAsTarget(
 		return ret;
 	}
 
-//	uint8_t mode = s_ResponseBuf[POS_RESDATA];
-//	LOGD("Mode : %02x \n", mode);
-//	if(pResponse && pResponseLen) {
-//		*pResponseLen = res_len - 3;
-//		memcpy(pResponse, &(s_ResponseBuf[POS_RESDATA+1]), *pResponseLen);
-//	}
-//	for(int i=0; i<res_len; i++) {
-//		LOGD("%02x \n", s_ResponseBuf[i]);
-//	}
-
-	if(pResponse && pResponseLen) {
+	if(pParam->pCommand) {
 		//Activated情報以下
-		*pResponseLen = (uint8_t)(res_len - 4);
-		memcpy(pResponse, s_ResponseBuf + 2, *pResponseLen);
+		pParam->CommandLen = (uint8_t)(res_len - 4);
+		memcpy(pParam->pCommand, s_ResponseBuf + 2, pParam->CommandLen);
 	}
 
 	return true;
@@ -1054,13 +1059,13 @@ bool NfcPcd::tgGetInitiatorCommand(uint8_t* pResponse, uint8_t* pResponseLen)
  *
  * DEP用。Initiatorからのデータを取得する。
  *
- * @param[out]	pResponse		応答データ
- * @param[out]	pResponseLen	pResponseの長さ
+ * @param[out]	pCommand		Initiatorからの送信データ
+ * @param[out]	pCommandLen		pCommandの長さ
  *
  * @retval		true			成功
  * @retval		false			失敗
  */
-bool NfcPcd::tgGetData(uint8_t* pResponse, uint8_t* pResponseLen)
+bool NfcPcd::tgGetData(uint8_t* pCommand, uint8_t* pCommandLen)
 {
 	s_NormalFrmBuf[0] = 0xd4;
 	s_NormalFrmBuf[1] = 0x86;				//TgGetData
@@ -1072,8 +1077,8 @@ bool NfcPcd::tgGetData(uint8_t* pResponse, uint8_t* pResponseLen)
 		return false;
 	}
 
-	*pResponseLen = res_len - (RESHEAD_LEN+1);
-	memcpy(pResponse, s_ResponseBuf + RESHEAD_LEN+1, *pResponseLen);
+	*pCommandLen = res_len - (RESHEAD_LEN+1);
+	memcpy(pCommand, s_ResponseBuf + RESHEAD_LEN+1, *pCommandLen);
 
 	return true;
 }
@@ -1084,25 +1089,25 @@ bool NfcPcd::tgGetData(uint8_t* pResponse, uint8_t* pResponseLen)
  *
  * DEP用。Initiatorへデータを返す。
  *
- * @param[in]	pCommand		送信するコマンド
- * @param[in]	CommandLen		pCommandの長さ
+ * @param[in]	pResponse		Initiatorに送信するコマンド
+ * @param[in]	ResponseLen		pResponseの長さ
  *
  * @retval		true			成功
  * @retval		false			失敗
  */
-bool NfcPcd::tgSetData(const uint8_t* pCommand, uint8_t CommandLen)
+bool NfcPcd::tgSetData(const uint8_t* pResponse, uint8_t ResponseLen)
 {
-	if(CommandLen > 252) {
+	if(ResponseLen > 252) {
 		LOGE("Too large\n");
 		return false;
 	}
 
 	s_NormalFrmBuf[0] = 0xd4;
 	s_NormalFrmBuf[1] = 0x8e;			//TgSetData
-	memcpy(s_NormalFrmBuf + 2, pCommand, CommandLen);
+	memcpy(s_NormalFrmBuf + 2, pResponse, ResponseLen);
 
 	uint16_t res_len;
-	bool ret = sendCmd(s_NormalFrmBuf, 2 + CommandLen, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 2 + ResponseLen, s_ResponseBuf, &res_len);
 	if(!ret || (res_len != RESHEAD_LEN+1) || (s_ResponseBuf[POS_RESDATA] != 0x00)) {
 		LOGE("tgSetData ret=%d / len=%d / code=%02x\n", ret, res_len, s_ResponseBuf[POS_RESDATA]);
 		return false;

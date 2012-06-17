@@ -53,6 +53,8 @@ public:
 		const uint8_t*		pNfcId3;	///< NFCID3(不要ならnull)
 		const uint8_t*		pGt;		///< GeneralBytes(GtLenが0:未使用)
 		uint8_t				GtLen;		///< pGtサイズ(不要なら0)
+		uint8_t*			pResponse;		///< [out]Targetからの戻り値(不要なら0)
+		uint8_t				ResponseLen;	///< [out]pResponseのサイズ(不要なら0)
 	};
 	
 	/// @struct	TargetParam
@@ -66,6 +68,8 @@ public:
 //										///  null時には6byteを乱数生成する(先頭は01fe)。
 		const uint8_t*		pGt;		///< GeneralBytes(GtLenが0:未使用)
 		uint8_t				GtLen;		///< pGtサイズ(不要なら0)
+		uint8_t*			pCommand;		///< [out]Initiatorからの送信データ(不要なら0)
+		uint8_t				CommandLen;		///< [out]pCommandのサイズ(不要なら0)
 	};
 
 public:
@@ -145,16 +149,13 @@ public:
 
 	/// InJumpForDEP or ImJumpForPSL
 private:
-	bool _inJump(uint8_t Cmd,
-			const DepInitiatorParam* pParam);
+	bool _inJump(uint8_t Cmd, DepInitiatorParam* pParam);
 
 public:
 	/// InJumpForDEP
-	bool inJumpForDep(
-			const DepInitiatorParam* pParam);
+	bool inJumpForDep(DepInitiatorParam* pParam);
 	/// InJumpForPSL
-	bool inJumpForPsl(
-			const DepInitiatorParam* pParam);
+	bool inJumpForPsl(DepInitiatorParam* pParam);
 	/// InListPassiveTarget
 	bool inListPassiveTarget(
 			const uint8_t* pInitData, uint8_t InitLen,
@@ -176,9 +177,7 @@ public:
 	/// @{
 
 	/// TgInitAsTarget
-	bool tgInitAsTarget(
-			const TargetParam* pParam,
-			uint8_t* pResponse=0, uint8_t* pResponseLen=0);
+	bool tgInitAsTarget(TargetParam* pParam);
 	/// TgSetGeneralBytes
 	bool tgSetGeneralBytes(const TargetParam* pParam);
 	/// TgResponseToInitiator
@@ -188,9 +187,9 @@ public:
 	/// TgGetInitiatorCommand
 	bool tgGetInitiatorCommand(uint8_t* pResponse, uint8_t* pResponseLen);
 	/// TgGetData
-	bool tgGetData(uint8_t* pResponse, uint8_t* pResponseLen);
+	bool tgGetData(uint8_t* pCommand, uint8_t* pCommandLen);
 	/// TgSetData
-	bool tgSetData(const uint8_t* pCommand, uint8_t CommandLen);
+	bool tgSetData(const uint8_t* pResponse, uint8_t ResponseLen);
 	/// InRelease
 	bool inRelease();
 	/// @}
