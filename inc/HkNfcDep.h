@@ -46,7 +46,7 @@ public:
 	/// @{
 
 	/// InJumpForDEP
-	bool startAsInitiator(DepMode mode, const uint8_t* pGt = 0, uint8_t GtLen = 0,
+	bool startAsInitiator(DepMode mode, const uint8_t* pGb = 0, uint8_t GbLen = 0,
 							bool (*pFunc)(const uint8_t* pRecv, uint8_t RecvLen) = 0);
 	/// InDataExchange
 	bool sendAsInitiator(
@@ -62,7 +62,8 @@ public:
 	/// @{
 
 	/// TgInitTarget
-	bool startAsTarget(const uint8_t* pGt = 0, uint8_t GtLen = 0);
+	bool startAsTarget(const uint8_t* pGb = 0, uint8_t GbLen = 0,
+							bool (*pFunc)(const uint8_t* pRecv, uint8_t RecvLen) = 0);
 	/// TgGetData
 	bool recvAsTarget(void* pCommand, uint8_t* pCommandLen);
 	/// TgSetData

@@ -51,8 +51,8 @@ public:
 		ActPass Ap;						///< Active/Passive
 		BaudRate Br;					///< 通信速度
 		const uint8_t*		pNfcId3;	///< NFCID3(不要ならnull)
-		const uint8_t*		pGt;		///< GeneralBytes(GtLenが0:未使用)
-		uint8_t				GtLen;		///< pGtサイズ(不要なら0)
+		const uint8_t*		pGb;		///< GeneralBytes(GbLenが0:未使用)
+		uint8_t				GbLen;		///< pGbサイズ(不要なら0)
 		uint8_t*			pResponse;		///< [out]Targetからの戻り値(不要なら0)
 		uint8_t				ResponseLen;	///< [out]pResponseのサイズ(不要なら0)
 	};
@@ -66,8 +66,8 @@ public:
 //										///  null時には乱数生成する。
 //		const uint8_t*		pIDm;		///< [NFC-F]IDm
 //										///  null時には6byteを乱数生成する(先頭は01fe)。
-		const uint8_t*		pGt;		///< GeneralBytes(GtLenが0:未使用)
-		uint8_t				GtLen;		///< pGtサイズ(不要なら0)
+		const uint8_t*		pGb;		///< GeneralBytes(GbLenが0:未使用)
+		uint8_t				GbLen;		///< pGbサイズ(不要なら0)
 		uint8_t*			pCommand;		///< [out]Initiatorからの送信データ(不要なら0)
 		uint8_t				CommandLen;		///< [out]pCommandのサイズ(不要なら0)
 	};

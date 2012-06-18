@@ -644,10 +644,10 @@ bool NfcPcd::_inJump(uint8_t Cmd, DepInitiatorParam* pParam)
 		memcpy(&(s_NormalFrmBuf[len]), pParam->pNfcId3, NFCID3_LEN);
 		len += NFCID3_LEN;
 	}
-	if(pParam->pGt && pParam->GtLen) {
+	if(pParam->pGb && pParam->GbLen) {
 		s_NormalFrmBuf[4] |= 0x04;
-		memcpy(&(s_NormalFrmBuf[len]), pParam->pGt, pParam->GtLen);
-		len += pParam->GtLen;
+		memcpy(&(s_NormalFrmBuf[len]), pParam->pGb, pParam->GbLen);
+		len += pParam->GbLen;
 	}
 
 	uint16_t res_len;
@@ -854,7 +854,10 @@ bool NfcPcd::tgInitAsTarget(TargetParam* pParam)
 	s_NormalFrmBuf[len++] = 0x8c;				//TgInitAsTarget
 
 	//mode
-	s_NormalFrmBuf[len++] = 0x00;
+	//s_NormalFrmBuf[len++] = 0x00;		// Card Emu. OK && active OK
+	//s_NormalFrmBuf[len++] = 0x01;		// Card Emu. OK && Passive Only
+	s_NormalFrmBuf[len++] = 0x02;		// DEP only && active OK
+	//s_NormalFrmBuf[len++] = 0x03;		// DEP only && Passive Only
 
 	//MIFARE
 	//SENS_RES
@@ -884,6 +887,7 @@ bool NfcPcd::tgInitAsTarget(TargetParam* pParam)
 #if 0
 	if(pParam->pIDm) {
 		memcpy(s_NormalFrmBuf + len, pParam->pIDm, NFCID2_LEN);
+		len += NFCID2_LEN;
 	} else {
 		//自動生成
 		s_NormalFrmBuf[len++] = 0x01;
@@ -906,7 +910,6 @@ bool NfcPcd::tgInitAsTarget(TargetParam* pParam)
 	s_NormalFrmBuf[len++] = std::rand() & 0xff;
 	s_NormalFrmBuf[len++] = std::rand() & 0xff;
 #endif
-	len += NFCID2_LEN;
 	//PMm
 	memset(s_NormalFrmBuf + len, 0xff, 8);
 	len += 8;
@@ -921,14 +924,14 @@ bool NfcPcd::tgInitAsTarget(TargetParam* pParam)
 
 	//NFCID3t
 	memcpy(s_NormalFrmBuf + len, s_NormalFrmBuf + idm_pos, NFCID2_LEN);
+	len += NFCID2_LEN;
 	s_NormalFrmBuf[len++] = 0x00;
 	s_NormalFrmBuf[len++] = 0x00;
 
 	//General Bytes
-	if(pParam->GtLen) {
-		s_NormalFrmBuf[len++] = pParam->GtLen;	//Gt
-		memcpy(s_NormalFrmBuf + len, pParam->pGt, pParam->GtLen);
-		len += pParam->GtLen;
+	if(pParam->GbLen) {
+		memcpy(s_NormalFrmBuf + len, pParam->pGb, pParam->GbLen);
+		len += pParam->GbLen;
 	}
 
 
@@ -945,7 +948,7 @@ bool NfcPcd::tgInitAsTarget(TargetParam* pParam)
 
 	if(pParam->pCommand) {
 		//Activated情報以下
-		pParam->CommandLen = (uint8_t)(res_len - 4);
+		pParam->CommandLen = (uint8_t)(res_len - 2);
 		memcpy(pParam->pCommand, s_ResponseBuf + 2, pParam->CommandLen);
 	}
 
@@ -955,19 +958,19 @@ bool NfcPcd::tgInitAsTarget(TargetParam* pParam)
 
 bool NfcPcd::tgSetGeneralBytes(const TargetParam* pParam)
 {
-	if(pParam->GtLen > 48) {
+	if(pParam->GbLen > 48) {
 		LOGE("Too large\n");
 		return false;
 	}
 
 	s_NormalFrmBuf[0] = 0xd4;
 	s_NormalFrmBuf[1] = 0x92;				//TgSetGeneralBytes
-	if(pParam->GtLen) {
-		memcpy(s_NormalFrmBuf + 2, pParam->pGt, pParam->GtLen);
+	if(pParam->GbLen) {
+		memcpy(s_NormalFrmBuf + 2, pParam->pGb, pParam->GbLen);
 	}
 
 	uint16_t res_len;
-	bool ret = sendCmd(s_NormalFrmBuf, 2 + pParam->GtLen, s_ResponseBuf, &res_len);
+	bool ret = sendCmd(s_NormalFrmBuf, 2 + pParam->GbLen, s_ResponseBuf, &res_len);
 	if(!ret || (res_len < RESHEAD_LEN+1) || (s_ResponseBuf[POS_RESDATA] != 0x00)) {
 		LOGE("tgSetGeneralBytes ret=%d / len=%d / code=%02x\n", ret, res_len, s_ResponseBuf[POS_RESDATA]);
 		return false;
