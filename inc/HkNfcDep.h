@@ -60,10 +60,8 @@ public:
 	/// @ingroup gp_NfcDep
 	/// @{
 
-	/// TgInitTarget
+	/// TgInitTarget, TgSetGeneralBytes
 	bool startAsTarget(bool bLlcp=true);
-	/// TgSetGeneralBytes
-	bool startLlcpTarget();
 	/// TgGetData
 	bool recvAsTarget(void* pCommand, uint8_t* pCommandLen);
 	/// TgSetData
@@ -79,6 +77,12 @@ public:
 	/// @}
 
 
+public:
+	/// @addtogroup gp_llcp		LLCP Target
+	/// @ingroup gp_NfcDep
+	/// @{
+
+	/// @}
 
 private:
 	HkNfcRw*		m_pHkNfcRw;

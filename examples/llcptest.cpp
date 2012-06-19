@@ -31,50 +31,19 @@ int nfc_test()
 	if(selnum == 0) {
 		std::cout << "\nInitiator" << std::endl;
 		
-		b = dep.startLlcpInitiator(HkNfcDep::PSV_424K);
+		b = dep.startAsInitiator(HkNfcDep::PSV_424K);
 		
 		if(b) {
-			sleep(1);
-			
-			uint8_t res_size = 0;
-			b = dep.sendAsInitiator(keyword1, std::strlen(keyword1), recvbuf, &res_size);
-			if(b) {
-				std::cout << "send keyword1" << std::endl;
-				if(std::memcmp(keyword2, recvbuf, res_size) == 0) {
-					std::cout << "receive keyword2" << std::endl;
-				} else {
-					b = false;
-				}
-			}
-			b = dep.sendAsInitiator(keyword2, std::strlen(keyword2), recvbuf, &res_size);
+			std::cout << "OK" << std::endl;
 			dep.stopAsInitiator();
 		}
 	} else {
 		std::cout << "\nTarget" << std::endl;
 
-		b = dep.startLlcpTarget();
+		b = dep.startAsTarget();
 		
 		if(b) {
-			uint8_t res_size = 0;
-			b = dep.recvAsTarget(recvbuf, &res_size);
-			if(std::memcmp(keyword1, recvbuf, res_size) == 0) {
-				std::cout << "receive keyword1" << std::endl;
-				b = dep.respAsTarget(keyword2, std::strlen(keyword2));
-				std::cout << "return keyword2" << std::endl;
-			} else {
-				b = false;
-			}
-			if(b) {
-				uint8_t res_size = 0;
-				b = dep.recvAsTarget(recvbuf, &res_size);
-				if(std::memcmp(keyword2, recvbuf, res_size) == 0) {
-					std::cout << "receive keyword2" << std::endl;
-					b = dep.respAsTarget(0, 0);
-				}
-			}
-			while(b) {
-				b = dep.recvAsTarget(recvbuf, &res_size);
-			}
+			std::cout << "OK" << std::endl;
 		}
 	}
 	std::cout << "exec = " << b << std::endl;

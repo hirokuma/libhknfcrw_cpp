@@ -8,7 +8,7 @@ INCDIR = ../inc
 
 
 SRCS = \
-	deptest.cpp \
+	llcptest.cpp \
 	main.cpp
 
 OBJS = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))

@@ -109,10 +109,18 @@ bool HkNfcDep::startAsInitiator(DepMode mode, bool bLlcp/* =true */)
 			LOGD("[I]%02x \n", pRecv[i]);
 		}
 #endif
+
+		if(prm.ResponseLen < 19) {
+			// TgInitTarget Res(16) + Magic Number(3)
+			LOGE("small len : %d\n", prm.ResponseLen);
+			return false;
+		}
+
 		int pos = 0;
 
 		// Tg
 		if(pRecv[pos++] != 0x01) {
+			LOGE("bad Tg\n");
 			return false;
 		}
 
@@ -123,6 +131,7 @@ bool HkNfcDep::startAsInitiator(DepMode mode, bool bLlcp/* =true */)
 		if((pRecv[pos] == 0x00) && (pRecv[pos+1] == 0x00) && (pRecv[pos+2] == 0x00)) {
 			//OK
 		} else {
+			LOGE("bad DID/BS/BR\n");
 			return false;
 		}
 		pos += 3;
@@ -132,6 +141,7 @@ bool HkNfcDep::startAsInitiator(DepMode mode, bool bLlcp/* =true */)
 
 		//PPt
 		if(pRecv[pos++] != 0x32) {
+			LOGE("bad PP\n");
 			return false;
 		}
 
@@ -141,6 +151,7 @@ bool HkNfcDep::startAsInitiator(DepMode mode, bool bLlcp/* =true */)
 		if((pRecv[pos] == 0x46) && (pRecv[pos+1] == 0x66) && (pRecv[pos+2] == 0x6d)) {
 			//OK
 		} else {
+			LOGE("bad Magic Number\n");
 			return false;
 		}
 		pos += 3;
@@ -148,6 +159,7 @@ bool HkNfcDep::startAsInitiator(DepMode mode, bool bLlcp/* =true */)
 		//Link activation
 		while(pos < prm.ResponseLen) {
 			//ここでPDU解析
+			pos++;
 		}
 	}
 
@@ -171,15 +183,17 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 	}
 
 	NfcPcd::TargetParam prm;
-	prm.pGb = 0;
-	prm.GbLen = 0;
 	prm.pCommand = m_pHkNfcRw->s_ResponseBuf;
 	prm.CommandLen = 0;
 
 	if(bLlcp) {
+		prm.pGb = LlcpGb;
+		prm.GbLen = (uint8_t)sizeof(LlcpGb);
 		//fAutomaticATR_RES=0
 		m_pNfcPcd->setParameters(0x18);
 	} else {
+		prm.pGb = 0;
+		prm.GbLen = 0;
 		//fAutomaticATR_RES=1
 		m_pNfcPcd->setParameters(0x1c);
 	}
@@ -233,9 +247,13 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		break;
 	}
 
+	if(m_pHkNfcRw->s_ResponseBuf[1] != prm.CommandLen - 1) {
+		LOGE("bad size, %d, %d\n", m_pHkNfcRw->s_ResponseBuf[1], prm.CommandLen);
+		return false;
+	}
 
-	const uint8_t* pIniCmd = &(m_pHkNfcRw->s_ResponseBuf[1]);
-	uint8_t IniCmdLen = prm.CommandLen - 1;
+	const uint8_t* pIniCmd = &(m_pHkNfcRw->s_ResponseBuf[2]);
+	uint8_t IniCmdLen = prm.CommandLen - 2;
 
 	if((pIniCmd[0] >= 3) && (pIniCmd[1] == 0xd4) && (pIniCmd[2] == 0x0a)) {
 		// RLS_REQなら、終わらせる
@@ -268,30 +286,82 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		return false;
 	}
 	
-	return true;
-}
+	if(bLlcp) {
+#if 1
+		for(int i=0; i<IniCmdLen; i++) {
+			LOGD("[I]%02x \n", pIniCmd[i]);
+		}
+#endif
+
+		if(IniCmdLen < 19) {
+			// ATR_REQ(16) + Magic Number(3)
+			LOGE("small len : %d\n", IniCmdLen);
+			return false;
+		}
+
+		// ATR_REQチェック
+		int pos = 0;
+
+		// ATR_REQ
+		if((pIniCmd[pos] == 0xd4) && (pIniCmd[pos+1] == 0x00)) {
+			//OK
+		} else {
+			LOGE("not ATR_REQ\n");
+			return false;
+		}
+		pos += 2;
+		
+		// NFCID3(skip)
+		pos += HkNfcRw::NFCID3_LEN;
+
+		//DIDi, BSi, BRi
+		if((pIniCmd[pos] == 0x00) && (pIniCmd[pos+1] == 0x00) && (pIniCmd[pos+2] == 0x00)) {
+			//OK
+		} else {
+			LOGE("bad DID/BS/BR\n");
+			return false;
+		}
+		pos += 3;
+
+		//PPi
+		if(pIniCmd[pos++] != 0x32) {
+			LOGE("bad PP\n");
+			return false;
+		}
+
+		// Gi
+
+		// Magic Number
+		if((pIniCmd[pos] == 0x46) && (pIniCmd[pos+1] == 0x66) && (pIniCmd[pos+2] == 0x6d)) {
+			//OK
+		} else {
+			LOGE("bad Magic Number\n");
+			return false;
+		}
+		pos += 3;
+
+		//Link activation
+		while(pos < IniCmdLen) {
+			//ここでPDU解析
+			pos++;
+		}
 
 
-bool HkNfcDep::startLlcpTarget()
-{
-	NfcPcd::TargetParam prm;
-	prm.pGb = LlcpGb;
-	prm.GbLen = (uint8_t)sizeof(LlcpGb);
-
-	bool ret = m_pNfcPcd->tgSetGeneralBytes(&prm);
-	if(ret) {
-		//モード確認
-		ret = m_pNfcPcd->getGeneralStatus(m_pHkNfcRw->s_ResponseBuf);
-	}
-	if(ret) {
-		if(m_pHkNfcRw->s_ResponseBuf[NfcPcd::GGS_TXMODE] != NfcPcd::GGS_TXMODE_DEP) {
-			//DEPではない
-			LOGE("not DEP mode\n");
-			ret = false;
+		bool ret = m_pNfcPcd->tgSetGeneralBytes(&prm);
+		if(ret) {
+			//モード確認
+			ret = m_pNfcPcd->getGeneralStatus(m_pHkNfcRw->s_ResponseBuf);
+		}
+		if(ret) {
+			if(m_pHkNfcRw->s_ResponseBuf[NfcPcd::GGS_TXMODE] != NfcPcd::GGS_TXMODE_DEP) {
+				//DEPではない
+				LOGE("not DEP mode\n");
+				ret = false;
+			}
 		}
 	}
 	
-	return ret;
+	return true;
 }
 
 
