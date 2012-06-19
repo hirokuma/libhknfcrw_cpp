@@ -9,7 +9,6 @@
  * @brief	NFC-Bアクセス
  */
 class HkNfcB {
-	friend class HkNfcRw;
 public:
 	bool polling();
 
@@ -24,6 +23,5 @@ private:
 	HkNfcRw*	m_pHkNfcRw;
 	NfcPcd*		m_pNfcPcd;
 };
-
 
 #endif /* HKNFCB_H */

@@ -9,7 +9,6 @@
  * @brief	NFC-F(FeliCa)アクセス
  */
 class HkNfcF {
-	friend class HkNfcRw;
 public:
 	static const uint8_t NFCID_LEN = HkNfcRw::NFCID2_LEN;	///< NFCID長さ
 	static const uint16_t SVCCODE_RW = 0x0009;		///< サービスコード:R/W

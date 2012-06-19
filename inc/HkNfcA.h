@@ -9,7 +9,6 @@
  * @brief		NFC-Aアクセス
  */
 class HkNfcA {
-	friend class HkNfcRw;
 public:
 
 	/**

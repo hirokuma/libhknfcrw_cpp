@@ -31,7 +31,7 @@ int nfc_test()
 	if(selnum == 0) {
 		std::cout << "\nInitiator" << std::endl;
 		
-		b = dep.startAsInitiator(HkNfcDep::PSV_424K);
+		b = dep.startAsInitiator(HkNfcDep::PSV_424K, false);
 		
 		if(b) {
 			sleep(1);
@@ -52,7 +52,7 @@ int nfc_test()
 	} else {
 		std::cout << "\nTarget" << std::endl;
 
-		b = dep.startAsTarget();
+		b = dep.startAsTarget(false);
 		
 		if(b) {
 			uint8_t res_size = 0;

@@ -215,11 +215,7 @@ private:
 private:
 	bool m_bOpened;                             ///< オープンしているかどうか
 
-    friend class HkNfcRw;
-	friend class HkNfcA;
-	friend class HkNfcB;
-	friend class HkNfcF;
-
+	friend class HkNfcRw;
 };
 
 #endif /* NFCPCD_H */

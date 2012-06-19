@@ -12,81 +12,20 @@
 using namespace HkNfcRwMisc;
 
 
+
 namespace {
 	/// LLCPのGeneralBytes
 	const uint8_t LlcpGb[] = {
 		0x46, 0x66, 0x6d,		// LLCP Magic Number
 		0x01, 0x01, 0x10,		// TLV0:VERSION[MUST] ... 1.0
-		0x03, 0x02, 0x00, 0x13,	// TLV1:WKS[SHOULD] ... 0:must, 1:SDP, 4:SNEP
+		0x03, 0x02, 0x00, 0x13,	// TLV1:WKS[SHOULD]
+												// bit0 : must
+												// bit1 : SDP
+												// bit4 : SNEP
 								// http://www.nfc-forum.org/specs/nfc_forum_assigned_numbers_register
 		0x04, 0x01, 200			// TLV2:LTO[MAY] ... 10ms x 200 = 2000ms
 								// LTO > RWT
 	};
-	
-	/// LLCPかどうかのチェック
-	bool checkLlcpInitiator(const uint8_t* pRecv, uint8_t RecvLen)
-	{
-#if 1
-		for(int i=0; i<RecvLen; i++) {
-			LOGD("[I]%02x \n", pRecv[i]);
-		}
-#endif
-		int pos = 0;
-		
-		// Tg
-		if(pRecv[pos++] != 0x01) {
-			return false;
-		}
-		
-		// NFCID3(skip)
-		pos += HkNfcRw::NFCID3_LEN;
-
-		//DIDt, BSt, BRt
-		if((pRecv[pos] == 0x00) && (pRecv[pos+1] == 0x00) && (pRecv[pos+2] == 0x00)) {
-			//OK
-		} else {
-			return false;
-		}
-		pos += 3;
-		
-		//TO(skip)
-		pos++;
-		
-		//PPt
-		if(pRecv[pos++] != 0x32) {
-			return false;
-		}
-		
-		// Gt
-		
-		// Magic Number
-		if((pRecv[pos] == 0x46) && (pRecv[pos+1] == 0x66) && (pRecv[pos+2] == 0x6d)) {
-			//OK
-		} else {
-			return false;
-		}
-		pos += 3;
-		
-		//Link activation
-		while(pos < RecvLen) {
-			//ここでPDU解析
-		}
-		
-		return true;
-	}
-	
-	/// LLCPかどうかのチェック
-	bool checkLlcpTarget(const uint8_t* pRecv, uint8_t RecvLen)
-	{
-#if 1
-		for(int i=0; i<RecvLen; i++) {
-			LOGD("[T]%02x \n", pRecv[i]);
-		}
-#endif
-		return true;
-	}
-
-
 }
 
 
@@ -119,8 +58,7 @@ HkNfcDep::~HkNfcDep()
  * @retval	true	成功
  * @retval	false	失敗
  */
-bool HkNfcDep::startAsInitiator(DepMode mode, const uint8_t* pGb/* =0 */, uint8_t GbLen/* =0 */,
-								bool (*pFunc)(const uint8_t* pRecv, uint8_t RecvLen)/* =0 */)
+bool HkNfcDep::startAsInitiator(DepMode mode, bool bLlcp/* =true */)
 {
 	if(m_DepMode != DEP_NONE) {
 		LOGE("Already DEP mode\n");
@@ -146,10 +84,15 @@ bool HkNfcDep::startAsInitiator(DepMode mode, const uint8_t* pGb/* =0 */, uint8_
 	}
 	
 	prm.pNfcId3 = 0;		// R/Wで自動生成
-	prm.pGb = pGb;
-	prm.GbLen = GbLen;
 	prm.pResponse = m_pHkNfcRw->s_ResponseBuf;
 	prm.ResponseLen = 0;
+	if(bLlcp) {
+		prm.pGb = LlcpGb;
+		prm.GbLen = (uint8_t)sizeof(LlcpGb);
+	} else {
+		prm.pGb = 0;
+		prm.GbLen = 0;
+	}
 
 	if(!m_pNfcPcd->inJumpForDep(&prm)) {
 		LOGE("inJumpForDep\n");
@@ -159,12 +102,56 @@ bool HkNfcDep::startAsInitiator(DepMode mode, const uint8_t* pGb/* =0 */, uint8_
 	m_DepMode = mode;
 	m_bInitiator = true;
 
-	bool ret = true;
-	if(pFunc) {
-		ret = (*pFunc)(prm.pResponse, prm.ResponseLen);
+	if(bLlcp) {
+		const uint8_t* pRecv = prm.pResponse;
+#if 1
+		for(int i=0; i<prm.ResponseLen; i++) {
+			LOGD("[I]%02x \n", pRecv[i]);
+		}
+#endif
+		int pos = 0;
+
+		// Tg
+		if(pRecv[pos++] != 0x01) {
+			return false;
+		}
+
+		// NFCID3(skip)
+		pos += HkNfcRw::NFCID3_LEN;
+
+		//DIDt, BSt, BRt
+		if((pRecv[pos] == 0x00) && (pRecv[pos+1] == 0x00) && (pRecv[pos+2] == 0x00)) {
+			//OK
+		} else {
+			return false;
+		}
+		pos += 3;
+
+		//TO(skip)
+		pos++;
+
+		//PPt
+		if(pRecv[pos++] != 0x32) {
+			return false;
+		}
+
+		// Gt
+
+		// Magic Number
+		if((pRecv[pos] == 0x46) && (pRecv[pos+1] == 0x66) && (pRecv[pos+2] == 0x6d)) {
+			//OK
+		} else {
+			return false;
+		}
+		pos += 3;
+
+		//Link activation
+		while(pos < prm.ResponseLen) {
+			//ここでPDU解析
+		}
 	}
 
-	return ret;
+	return true;
 }
 
 
@@ -176,8 +163,7 @@ bool HkNfcDep::startAsInitiator(DepMode mode, const uint8_t* pGb/* =0 */, uint8_
  * @retval	true	成功
  * @retval	false	失敗
  */
-bool HkNfcDep::startAsTarget(const uint8_t* pGb/* =0 */, uint8_t GbLen/* =0 */,
-								bool (*pFunc)(const uint8_t* pRecv, uint8_t RecvLen)/* =0 */)
+bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 {
 	if(m_DepMode != DEP_NONE) {
 		LOGE("Already DEP mode\n");
@@ -185,14 +171,18 @@ bool HkNfcDep::startAsTarget(const uint8_t* pGb/* =0 */, uint8_t GbLen/* =0 */,
 	}
 
 	NfcPcd::TargetParam prm;
-
-	prm.pGb = pGb;
-	prm.GbLen = GbLen;
+	prm.pGb = 0;
+	prm.GbLen = 0;
 	prm.pCommand = m_pHkNfcRw->s_ResponseBuf;
 	prm.CommandLen = 0;
 
-	//fAutomaticATR_RES=0
-	m_pNfcPcd->setParameters(0x18);
+	if(bLlcp) {
+		//fAutomaticATR_RES=0
+		m_pNfcPcd->setParameters(0x18);
+	} else {
+		//fAutomaticATR_RES=1
+		m_pNfcPcd->setParameters(0x1c);
+	}
 
 	// Target時の通信性能向上
 	const uint8_t target[] = { 0x63, 0x0d, 0x08 };
@@ -277,23 +267,27 @@ bool HkNfcDep::startAsTarget(const uint8_t* pGb/* =0 */, uint8_t GbLen/* =0 */,
 		LOGE("invalid response\n");
 		return false;
 	}
+	
+	return true;
+}
 
-	bool ret = true;
-	if(pFunc) {
-		ret = (*pFunc)(pIniCmd, IniCmdLen);
-	}
 
+bool HkNfcDep::startLlcpTarget()
+{
+	NfcPcd::TargetParam prm;
+	prm.pGb = LlcpGb;
+	prm.GbLen = (uint8_t)sizeof(LlcpGb);
+
+	bool ret = m_pNfcPcd->tgSetGeneralBytes(&prm);
 	if(ret) {
-		m_pNfcPcd->tgSetGeneralBytes(&prm);
-
 		//モード確認
 		ret = m_pNfcPcd->getGeneralStatus(m_pHkNfcRw->s_ResponseBuf);
-		if(ret) {
-			if(m_pHkNfcRw->s_ResponseBuf[NfcPcd::GGS_TXMODE] != NfcPcd::GGS_TXMODE_DEP) {
-				//DEPではない
-				LOGE("not DEP mode\n");
-				ret = false;
-			}
+	}
+	if(ret) {
+		if(m_pHkNfcRw->s_ResponseBuf[NfcPcd::GGS_TXMODE] != NfcPcd::GGS_TXMODE_DEP) {
+			//DEPではない
+			LOGE("not DEP mode\n");
+			ret = false;
 		}
 	}
 	
@@ -378,37 +372,3 @@ bool HkNfcDep::respAsTarget(const void* pResponse, uint8_t ResponseLen)
 /*******************************************************************
  * LLCP
  *******************************************************************/
-
-/**
- * LLCP開始(Initiator)
- * 
- * [in]		mode	開始するDepMode
- * @retval	true	成功
- * @retval	false	失敗
- */
-bool HkNfcDep::startLlcpInitiator(DepMode mode)
-{
-	bool b = startAsInitiator(mode, LlcpGb, (uint8_t)sizeof(LlcpGb),
-													checkLlcpInitiator);
-	
-	return b;
-}
-
-
-/**
- * LLCP開始(Target)
- * 
- * @retval	true	成功
- * @retval	false	失敗
- */
-bool HkNfcDep::startLlcpTarget()
-{
-	bool b = startAsTarget(LlcpGb, (uint8_t)sizeof(LlcpGb),
-													checkLlcpTarget);
-	return b;
-}
-//
-//void HkNfcDep::createLlcpPdu()
-//{
-//}
-//

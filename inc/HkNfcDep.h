@@ -46,8 +46,7 @@ public:
 	/// @{
 
 	/// InJumpForDEP
-	bool startAsInitiator(DepMode mode, const uint8_t* pGb = 0, uint8_t GbLen = 0,
-							bool (*pFunc)(const uint8_t* pRecv, uint8_t RecvLen) = 0);
+	bool startAsInitiator(DepMode mode, bool bLlcp = true);
 	/// InDataExchange
 	bool sendAsInitiator(
 			const void* pCommand, uint8_t CommandLen,
@@ -62,8 +61,9 @@ public:
 	/// @{
 
 	/// TgInitTarget
-	bool startAsTarget(const uint8_t* pGb = 0, uint8_t GbLen = 0,
-							bool (*pFunc)(const uint8_t* pRecv, uint8_t RecvLen) = 0);
+	bool startAsTarget(bool bLlcp=true);
+	/// TgSetGeneralBytes
+	bool startLlcpTarget();
 	/// TgGetData
 	bool recvAsTarget(void* pCommand, uint8_t* pCommandLen);
 	/// TgSetData
@@ -79,18 +79,12 @@ public:
 	/// @}
 
 
-public:
-	bool startLlcpInitiator(DepMode mode);
-	bool startLlcpTarget();
-
 
 private:
 	HkNfcRw*		m_pHkNfcRw;
 	NfcPcd*			m_pNfcPcd;
 	DepMode			m_DepMode;
 	bool			m_bInitiator;
-
-	friend class HkNfcRw;
 };
 
 #endif /* HK_NFCDEP_H */
