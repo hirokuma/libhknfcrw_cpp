@@ -26,6 +26,10 @@ namespace {
 		0x04, 0x01, 200			// TLV2:LTO[MAY] ... 10ms x 200 = 2000ms
 								// LTO > RWT
 	};
+	
+	// PDU解析の戻り値で使用する。
+	// 「このPDUのデータ部はService Data Unitなので、末尾までデータです」という意味。
+	const uint8_t SDU = 0xff;
 }
 
 
@@ -159,7 +163,8 @@ bool HkNfcDep::startAsInitiator(DepMode mode, bool bLlcp/* =true */)
 		//Link activation
 		while(pos < prm.ResponseLen) {
 			//ここでPDU解析
-			pos++;
+			PduType pdu;
+			pos += analyzeParamList(&pRecv[pos]);
 		}
 	}
 
@@ -343,7 +348,8 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		//Link activation
 		while(pos < IniCmdLen) {
 			//ここでPDU解析
-			pos++;
+			PduType pdu;
+			pos += analyzeParamList(&pIniCmd[pos]);
 		}
 
 
@@ -442,3 +448,141 @@ bool HkNfcDep::respAsTarget(const void* pResponse, uint8_t ResponseLen)
 /*******************************************************************
  * LLCP
  *******************************************************************/
+
+uint8_t (HkNfcDep::*HkNfcDep::sAnalyzePdu[])(const uint8_t* pBuf) = {
+	&HkNfcDep::analyzeSymm,
+	&HkNfcDep::analyzePax,
+	&HkNfcDep::analyzeAgf,
+	&HkNfcDep::analyzeUi,
+	&HkNfcDep::analyzeConn,
+	&HkNfcDep::analyzeDisc,
+	&HkNfcDep::analyzeCc,
+	&HkNfcDep::analyzeDm,
+	&HkNfcDep::analyzeFrmr,
+	&HkNfcDep::analyzeDummy,		//0x09
+	&HkNfcDep::analyzeDummy,		//0x0a
+	&HkNfcDep::analyzeDummy,		//0x0b
+	&HkNfcDep::analyzeI,
+	&HkNfcDep::analyzeRr,
+	&HkNfcDep::analyzeRnr,
+	&HkNfcDep::analyzeDummy		//0x0f
+};
+
+uint8_t HkNfcDep::analyzePdu(const uint8_t* pBuf, PduType* pResPdu)
+{
+	*pResPdu = (PduType)(((*pBuf & 0x03) << 2) | (((*pBuf+1) & 0x0c) >> 6));
+	uint8_t next;
+
+	next = (this->*sAnalyzePdu[*pResPdu])(pBuf);
+	return next;
+}
+
+uint8_t HkNfcDep::analyzeSymm(const uint8_t* pBuf)
+{
+	LOGD("PDU_SYMM\n");
+	return 2;
+}
+
+uint8_t HkNfcDep::analyzePax(const uint8_t* pBuf)
+{
+	LOGD("PDU_PAX\n");
+	return analyzeParamList(pBuf + 2);
+}
+
+uint8_t HkNfcDep::analyzeAgf(const uint8_t* pBuf)
+{
+	LOGD("PDU_AGF\n");
+	return (uint8_t)(*(pBuf + 2) + 1);
+}
+
+uint8_t HkNfcDep::analyzeUi(const uint8_t* pBuf)
+{
+	LOGD("PDU_UI\n");
+	return SDU;		//終わりまでデータが続く
+}
+
+uint8_t HkNfcDep::analyzeConn(const uint8_t* pBuf)
+{
+	LOGD("PDU_CONN\n");
+	return analyzeParamList(pBuf + 2);
+}
+
+uint8_t HkNfcDep::analyzeDisc(const uint8_t* pBuf)
+{
+	LOGD("PDU_DISC\n");
+	return 2;
+}
+
+uint8_t HkNfcDep::analyzeCc(const uint8_t* pBuf)
+{
+	LOGD("PDU_CC\n");
+	return analyzeParamList(pBuf + 2);
+}
+
+uint8_t HkNfcDep::analyzeDm(const uint8_t* pBuf)
+{
+	LOGD("PDU_DM\n");
+	return 3;
+}
+
+uint8_t HkNfcDep::analyzeFrmr(const uint8_t* pBuf)
+{
+	LOGD("PDU_FRMR\n");
+	return 0;
+}
+
+uint8_t HkNfcDep::analyzeI(const uint8_t* pBuf)
+{
+	LOGD("PDU_I\n");
+	return 0;
+}
+
+uint8_t HkNfcDep::analyzeRr(const uint8_t* pBuf)
+{
+	LOGD("PDU_RR\n");
+	return 0;
+}
+
+uint8_t HkNfcDep::analyzeRnr(const uint8_t* pBuf)
+{
+	LOGD("PDU_RNR\n");
+	return 0;
+}
+
+uint8_t HkNfcDep::analyzeDummy(const uint8_t* pBuf)
+{
+	LOGD("dummy dummy dummy\n");
+	return 0;
+}
+
+uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
+{
+	LOGD("Parameter List\n");
+	uint8_t next = (uint8_t)(2 + *(pBuf + 1));
+	switch(*pBuf) {
+	case 0x01:	//VERSION
+		LOGD("VERSION\n");
+		break;
+	case 0x02:	//MIUX
+		LOGD("MIUX\n");
+		break;
+	case 0x03:	//WKS
+		LOGD("WKS\n");
+		break;
+	case 0x04:	//LTO
+		LOGD("LTO\n");
+		break;
+	case 0x05:
+		LOGD("RW\n");
+		break;
+	case 0x06:
+		LOGD("SN\n");
+		break;
+	default:
+		LOGE("unknown\n");
+		next = 0xff;
+		break;
+	}
+	return next;
+}
+
