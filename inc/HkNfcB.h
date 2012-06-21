@@ -12,12 +12,8 @@ class HkNfcB {
 public:
 	bool polling();
 
-	virtual bool read(uint8_t* buf, uint8_t blockNo=0x00) { return false; }
-	virtual bool write(const uint8_t* buf, uint8_t blockNo=0x00) { return false; }
-
-private:
-    HkNfcB();
-    virtual ~HkNfcB();
+	static bool read(uint8_t* buf, uint8_t blockNo=0x00) { return false; }
+	static bool write(const uint8_t* buf, uint8_t blockNo=0x00) { return false; }
 };
 
 #endif /* HKNFCB_H */

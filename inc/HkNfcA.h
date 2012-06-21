@@ -44,21 +44,16 @@ public:
 #endif
 
 public:
-	bool polling();
-	virtual bool read(uint8_t* buf, uint8_t blockNo);
-	virtual bool write(const uint8_t* buf, uint8_t blockNo);
+	static bool polling();
+	static bool read(uint8_t* buf, uint8_t blockNo);
+	static bool write(const uint8_t* buf, uint8_t blockNo);
 
 	/// SEL_RES取得
-	SelRes getSelRes() const { return m_SelRes; }
+	static SelRes getSelRes() { return m_SelRes; }
 
 private:
-    HkNfcA();
-    virtual ~HkNfcA();
-
-private:
-	uint16_t	m_SensRes;
-	SelRes		m_SelRes;
-	uint8_t		m_TargetNo;
+	static uint16_t		m_SensRes;
+	static SelRes		m_SelRes;
 };
 
 

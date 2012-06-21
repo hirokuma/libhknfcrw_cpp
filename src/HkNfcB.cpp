@@ -11,13 +11,6 @@ namespace {
 	const uint8_t INLISTPASSIVETARGET_RES = 0x01;
 }
 
-HkNfcB::HkNfcB()
-{
-}
-
-HkNfcB::~HkNfcB()
-{
-}
 
 /**
  * [NFC-B]Polling

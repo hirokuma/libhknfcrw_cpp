@@ -7,6 +7,10 @@
 #include "nfclog.h"
 
 
+uint16_t			HkNfcA::m_SensRes;
+HkNfcA::SelRes		HkNfcA::m_SelRes;
+
+
 namespace {
 	//Polling
 	const uint8_t INLISTPASSIVETARGET[] = { 0x00 };
@@ -17,15 +21,6 @@ namespace {
 	const uint8_t KEY_B_AUTH = 0x61;
 	const uint8_t READ = 0x30;
 	const uint8_t UPDATE = 0xa0;
-}
-
-
-HkNfcA::HkNfcA()
-{
-}
-
-HkNfcA::~HkNfcA()
-{
 }
 
 
@@ -51,8 +46,10 @@ bool HkNfcA::polling()
 		return false;
 	}
 
-	m_TargetNo = *(pData + 3);
-	LOGD("TargetNo : %02x", m_TargetNo);
+	if(*(pData + 3) != 0x01) {
+		LOGE("bad TargetNo : %02x", *(pData + 3));
+		return false;
+	}
 
 	m_SensRes = (uint16_t)((*(pData + 4) << 8) | *(pData + 5));
 	LOGD("SENS_RES:%04x", m_SensRes);
@@ -84,7 +81,7 @@ bool HkNfcA::polling()
 
 bool HkNfcA::read(uint8_t* buf, uint8_t blockNo)
 {
-	HkNfcRw::s_CommandBuf[0] = m_TargetNo;
+	HkNfcRw::s_CommandBuf[0] = 0x01;
 	HkNfcRw::s_CommandBuf[2] = blockNo;
 	HkNfcRw::s_CommandBuf[3] = 0xff;
 	HkNfcRw::s_CommandBuf[4] = 0xff;
