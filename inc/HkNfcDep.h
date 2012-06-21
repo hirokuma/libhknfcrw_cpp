@@ -56,7 +56,7 @@ public:
 	};
 
 public:
-	HkNfcDep(HkNfcRw* pRw);
+	HkNfcDep();
 	virtual ~HkNfcDep();
 
 public:
@@ -124,7 +124,6 @@ public:
 
 
 private:
-	HkNfcRw*		m_pHkNfcRw;
 	DepMode			m_DepMode;
 	bool			m_bInitiator;
 };

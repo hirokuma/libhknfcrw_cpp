@@ -15,7 +15,7 @@ public:
 	static const uint16_t SVCCODE_RO = 0x000b;		///< サービスコード:RO
 
 public:
-	HkNfcF(HkNfcRw* pRw);
+	HkNfcF();
 	virtual ~HkNfcF();
 
 public:
@@ -39,7 +39,6 @@ public:
 
 
 private:
-	HkNfcRw*		m_pHkNfcRw;
 	uint16_t		m_SystemCode;		///< システムコード
 	uint16_t		m_SvcCode;
 

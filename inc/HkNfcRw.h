@@ -38,16 +38,9 @@ public:
 
 
 public:
-	static HkNfcRw* getInstance();
-
-protected:
-	HkNfcRw();
-	virtual ~HkNfcRw();
-
-public:
 
 	/// 選択解除
-	virtual void release();
+	static void release();
 #if 0	//ここはNDEF対応してからじゃないと意味がなさそうだな
 	/// データ読み込み
 	virtual bool read(uint8_t* buf, uint8_t blockNo=0x00) { return false; }
@@ -57,16 +50,16 @@ public:
 
 public:
 	/// オープン
-	bool open();
+	static bool open();
 	/// クローズ
-	void close();
+	static void close();
 
 public:
 	/// @addtogroup gp_CardDetect	カード探索
 	/// @{
 
 	/// ターゲットの探索
-	Type detect(HkNfcA* pNfcA, HkNfcB* pNfcB, HkNfcF* pNfcF);
+	static Type detect(HkNfcA* pNfcA, HkNfcB* pNfcB, HkNfcF* pNfcF);
 
 	/**
 	 * @brief UIDの取得
@@ -78,13 +71,13 @@ public:
 	 *
 	 * @note		- 戻り値が0の場合、UIDは未取得
 	 */
-	uint8_t getNfcId(uint8_t* pBuf) {
+	static uint8_t getNfcId(uint8_t* pBuf) {
 		std::memcpy(pBuf, m_NfcId, m_NfcIdLen);
 		return m_NfcIdLen;
 	}
 
 	/// デバッグ用
-	void debug_nfcid();
+	static void debug_nfcid();
 
 	/**
 	 * @brief NFCタイプの取得
@@ -93,19 +86,18 @@ public:
 	 *
 	 * @retval		Nfc::Type 参照
 	 */
-	Type getType() {
+	static Type getType() {
 		return m_Type;
 	}
 	/// @}
 
 
 private:
-	Type		m_Type;				///< アクティブなNFCタイプ
-
-    uint8_t		s_CommandBuf[CARD_COMMAND_LEN];		///< PCDへの送信バッファ
-    uint8_t		s_ResponseBuf[CARD_RESPONSE_LEN];	///< PCDからの受信バッファ
-    uint8_t		m_NfcId[MAX_NFCID_LEN];		///< 取得したNFCID
-	uint8_t		m_NfcIdLen;					///< 取得済みのNFCID長。0の場合は未取得。
+	static Type		m_Type;				///< アクティブなNFCタイプ
+	static uint8_t		s_CommandBuf[CARD_COMMAND_LEN];		///< PCDへの送信バッファ
+	static uint8_t		s_ResponseBuf[CARD_RESPONSE_LEN];	///< PCDからの受信バッファ
+	static uint8_t		m_NfcId[MAX_NFCID_LEN];		///< 取得したNFCID
+	static uint8_t		m_NfcIdLen;					///< 取得済みのNFCID長。0の場合は未取得。
 
 
 	friend class HkNfcA;

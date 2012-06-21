@@ -7,23 +7,22 @@
 int nfc_test()
 {
 	bool b;
-	HkNfcRw* pRw = HkNfcRw::getInstance();
 
 	std::cout << "\nOpen" << std::endl;
 
-	b = pRw->open();
+	b = HkNfcRw::open();
 	if(!b) {
 		std::cout << "open fail" << std::endl;
-		pRw->close();
+		HkNfcRw::close();
 		return -1;
 	}
 	std::cout << "\nCard Detect & read" << std::endl;
 
 	HkNfcF nfcf(pRw);
-	HkNfcRw::Type type = pRw->detect(0, 0, &nfcf);
+	HkNfcRw::Type type = HkNfcRw::detect(0, 0, &nfcf);
 	if(type != HkNfcRw::NFC_F) {
 		std::cout << "detect fail" << std::endl;
-		pRw->close();
+		HkNfcRw::close();
 		return -1;
 	}
 
@@ -37,7 +36,7 @@ int nfc_test()
 		b = nfcf.polling();
 		if(!b) {
 			std::cout << "not FeliCa card." << std::endl;
-			pRw->close();
+			HkNfcRw::close();
 			return -1;
 		}
 		std::cout << "FeliCa card." << std::endl;
@@ -75,7 +74,7 @@ int nfc_test()
 
 	std::cout << "\nClose" << std::endl;
 
-	pRw->close();
+	HkNfcRw::close();
 
 	return 0;
 }

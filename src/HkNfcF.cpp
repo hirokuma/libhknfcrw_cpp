@@ -44,9 +44,8 @@ namespace {
 }
 
 
-HkNfcF::HkNfcF(HkNfcRw* pRw)
-	: m_pHkNfcRw(pRw),
-		m_SystemCode(kSC_BROADCAST),
+HkNfcF::HkNfcF()
+	:	m_SystemCode(kSC_BROADCAST),
 		m_SvcCode(SVCCODE_RW)
 #ifdef HKNFCRW_USE_FALP
 		, m_FalpSId(0x0000), m_FalpRId(0x0000)
@@ -102,21 +101,21 @@ bool HkNfcF::polling(uint16_t systemCode /* = 0xffff */)
 	uint8_t* pData;
 
 	// 424Kbps
-	memcpy(m_pHkNfcRw->s_CommandBuf, INLISTPASSIVETARGET, sizeof(INLISTPASSIVETARGET));
-	m_pHkNfcRw->s_CommandBuf[2] = h16(systemCode);
-	m_pHkNfcRw->s_CommandBuf[3] = l16(systemCode);
+	memcpy(HkNfcRw::s_CommandBuf, INLISTPASSIVETARGET, sizeof(INLISTPASSIVETARGET));
+	HkNfcRw::s_CommandBuf[2] = h16(systemCode);
+	HkNfcRw::s_CommandBuf[3] = l16(systemCode);
 
 	ret = NfcPcd::inListPassiveTarget(
-				m_pHkNfcRw->s_CommandBuf, sizeof(INLISTPASSIVETARGET),
+				HkNfcRw::s_CommandBuf, sizeof(INLISTPASSIVETARGET),
 				&pData, &responseLen);
 	if (!ret
 	  || (memcmp(&pData[3], INLISTPASSIVETARGET_RES, sizeof(INLISTPASSIVETARGET_RES)) != 0)) {
 		LOGE("pollingF fail(424Kbps): ret=%d/len=%d", ret, responseLen);
 
 		//212Kbps
-		m_pHkNfcRw->s_CommandBuf[0] = 0x01;
+		HkNfcRw::s_CommandBuf[0] = 0x01;
 		ret = NfcPcd::inListPassiveTarget(
-				m_pHkNfcRw->s_CommandBuf, sizeof(INLISTPASSIVETARGET),
+				HkNfcRw::s_CommandBuf, sizeof(INLISTPASSIVETARGET),
 				&pData, &responseLen);
 		if (!ret
 		  || (memcmp(&pData[3], INLISTPASSIVETARGET_RES, sizeof(INLISTPASSIVETARGET_RES)) != 0)) {
@@ -126,8 +125,8 @@ bool HkNfcF::polling(uint16_t systemCode /* = 0xffff */)
 		}
 	}
 
-	memcpy(m_pHkNfcRw->m_NfcId, pData + 6, NFCID_LEN);
-	m_pHkNfcRw->m_NfcIdLen = NFCID_LEN;
+	memcpy(HkNfcRw::m_NfcId, pData + 6, NFCID_LEN);
+	HkNfcRw::m_NfcIdLen = NFCID_LEN;
 	m_SystemCode = (uint16_t)(*(pData + 22) << 8 | *(pData + 23));
 	//LOGD("SystemCode : %04x", m_SystemCode);
 
@@ -141,29 +140,29 @@ bool HkNfcF::polling(uint16_t systemCode /* = 0xffff */)
 bool HkNfcF::read(uint8_t* buf, uint8_t blockNo/*=0x00*/)
 {
 	uint8_t len;
-	m_pHkNfcRw->s_CommandBuf[0] = 16;
-	m_pHkNfcRw->s_CommandBuf[1] = 0x06;
-	memcpy(m_pHkNfcRw->s_CommandBuf + 2, m_pHkNfcRw->m_NfcId, NFCID_LEN);
-	m_pHkNfcRw->s_CommandBuf[10] = 0x01;				//サービス数
-	m_pHkNfcRw->s_CommandBuf[11] = l16(m_SvcCode);
-	m_pHkNfcRw->s_CommandBuf[12] = h16(m_SvcCode);
-	m_pHkNfcRw->s_CommandBuf[13] = 0x01;			//ブロック数
+	HkNfcRw::s_CommandBuf[0] = 16;
+	HkNfcRw::s_CommandBuf[1] = 0x06;
+	memcpy(HkNfcRw::s_CommandBuf + 2, HkNfcRw::m_NfcId, NFCID_LEN);
+	HkNfcRw::s_CommandBuf[10] = 0x01;				//サービス数
+	HkNfcRw::s_CommandBuf[11] = l16(m_SvcCode);
+	HkNfcRw::s_CommandBuf[12] = h16(m_SvcCode);
+	HkNfcRw::s_CommandBuf[13] = 0x01;			//ブロック数
 	uint16_t blist = create_blocklist2(blockNo);
-	m_pHkNfcRw->s_CommandBuf[14] = h16(blist);
-	m_pHkNfcRw->s_CommandBuf[15] = l16(blist);
+	HkNfcRw::s_CommandBuf[14] = h16(blist);
+	HkNfcRw::s_CommandBuf[15] = l16(blist);
 	bool ret = NfcPcd::communicateThruEx(
 					kDEFAULT_TIMEOUT,
-					m_pHkNfcRw->s_CommandBuf, 16,
-					m_pHkNfcRw->s_ResponseBuf, &len);
-	if (!ret || (m_pHkNfcRw->s_ResponseBuf[0] != m_pHkNfcRw->s_CommandBuf[0]+1)
-	  || (memcmp(m_pHkNfcRw->s_ResponseBuf + 1, m_pHkNfcRw->m_NfcId, NFCID_LEN) != 0)
-	  || (m_pHkNfcRw->s_ResponseBuf[9] != 0x00)
-	  || (m_pHkNfcRw->s_ResponseBuf[10] != 0x00)) {
-		LOGE("read : ret=%d / %02x / %02x / %02x", ret, m_pHkNfcRw->s_ResponseBuf[0], m_pHkNfcRw->s_ResponseBuf[9], m_pHkNfcRw->s_ResponseBuf[10]);
+					HkNfcRw::s_CommandBuf, 16,
+					HkNfcRw::s_ResponseBuf, &len);
+	if (!ret || (HkNfcRw::s_ResponseBuf[0] != HkNfcRw::s_CommandBuf[0]+1)
+	  || (memcmp(HkNfcRw::s_ResponseBuf + 1, HkNfcRw::m_NfcId, NFCID_LEN) != 0)
+	  || (HkNfcRw::s_ResponseBuf[9] != 0x00)
+	  || (HkNfcRw::s_ResponseBuf[10] != 0x00)) {
+		LOGE("read : ret=%d / %02x / %02x / %02x", ret, HkNfcRw::s_ResponseBuf[0], HkNfcRw::s_ResponseBuf[9], HkNfcRw::s_ResponseBuf[10]);
 		return false;
 	}
-	//m_pHkNfcRw->s_ResponseBuf[11] == 0x01
-	memcpy(buf, &m_pHkNfcRw->s_ResponseBuf[12], 16);
+	//HkNfcRw::s_ResponseBuf[11] == 0x01
+	memcpy(buf, &HkNfcRw::s_ResponseBuf[12], 16);
 
 	return true;
 }
@@ -193,24 +192,24 @@ bool HkNfcF::reqSystemCode(uint8_t* pNums)
 	// Request System Codeのテスト
 	uint8_t len;
 
-	m_pHkNfcRw->s_CommandBuf[0] = 10;
-	m_pHkNfcRw->s_CommandBuf[1] = 0x0c;
-	memcpy(m_pHkNfcRw->s_CommandBuf + 2, m_pHkNfcRw->m_NfcId, NFCID_LEN);
+	HkNfcRw::s_CommandBuf[0] = 10;
+	HkNfcRw::s_CommandBuf[1] = 0x0c;
+	memcpy(HkNfcRw::s_CommandBuf + 2, HkNfcRw::m_NfcId, NFCID_LEN);
 	bool ret = NfcPcd::communicateThruEx(
 						kDEFAULT_TIMEOUT,
-						m_pHkNfcRw->s_CommandBuf, 10,
-						m_pHkNfcRw->s_ResponseBuf, &len);
-	if (!ret || (m_pHkNfcRw->s_ResponseBuf[0] != m_pHkNfcRw->s_CommandBuf[0]+1)
-	  || (memcmp(m_pHkNfcRw->s_ResponseBuf + 1, m_pHkNfcRw->m_NfcId, NFCID_LEN) != 0)) {
+						HkNfcRw::s_CommandBuf, 10,
+						HkNfcRw::s_ResponseBuf, &len);
+	if (!ret || (HkNfcRw::s_ResponseBuf[0] != HkNfcRw::s_CommandBuf[0]+1)
+	  || (memcmp(HkNfcRw::s_ResponseBuf + 1, HkNfcRw::m_NfcId, NFCID_LEN) != 0)) {
 		LOGE("req_sys_code : ret=%d", ret);
 		return false;
 	}
 
-	*pNums = *(m_pHkNfcRw->s_ResponseBuf + 9);
+	*pNums = *(HkNfcRw::s_ResponseBuf + 9);
 
 	m_syscode_num = *pNums;
 	for(int i=0; i<m_syscode_num; i++) {
-		m_syscode[i] = (uint16_t)(*(m_pHkNfcRw->s_ResponseBuf + 10 + i * 2) << 8 | *(m_pHkNfcRw->s_ResponseBuf + 10 + i * 2 + 1));
+		m_syscode[i] = (uint16_t)(*(HkNfcRw::s_ResponseBuf + 10 + i * 2) << 8 | *(HkNfcRw::s_ResponseBuf + 10 + i * 2 + 1));
 		LOGD("sys[%d] : %04x", i, m_syscode[i]);
 	}
 
@@ -226,25 +225,25 @@ bool HkNfcF::searchServiceCode()
 	// Search Service Code
 	uint8_t len;
 	uint16_t loop = 0x0000;
-	m_pHkNfcRw->s_CommandBuf[0] = 12;
-	m_pHkNfcRw->s_CommandBuf[1] = 0x0a;
-	memcpy(m_pHkNfcRw->s_CommandBuf + 2, m_pHkNfcRw->m_NfcId, NFCID_LEN);
+	HkNfcRw::s_CommandBuf[0] = 12;
+	HkNfcRw::s_CommandBuf[1] = 0x0a;
+	memcpy(HkNfcRw::s_CommandBuf + 2, HkNfcRw::m_NfcId, NFCID_LEN);
 
 	do {
-		m_pHkNfcRw->s_CommandBuf[10] = l16(loop);
-		m_pHkNfcRw->s_CommandBuf[11] = h16(loop);
+		HkNfcRw::s_CommandBuf[10] = l16(loop);
+		HkNfcRw::s_CommandBuf[11] = h16(loop);
 		bool ret = NfcPcd::communicateThruEx(
 							kDEFAULT_TIMEOUT,
-							m_pHkNfcRw->s_CommandBuf, 12,
-							m_pHkNfcRw->s_ResponseBuf, &len);
-		if (!ret || (m_pHkNfcRw->s_ResponseBuf[0] != m_pHkNfcRw->s_CommandBuf[0]+1)
-		  || (memcmp(m_pHkNfcRw->s_ResponseBuf + 1, m_pHkNfcRw->m_NfcId, NFCID_LEN) != 0)) {
+							HkNfcRw::s_CommandBuf, 12,
+							HkNfcRw::s_ResponseBuf, &len);
+		if (!ret || (HkNfcRw::s_ResponseBuf[0] != HkNfcRw::s_CommandBuf[0]+1)
+		  || (memcmp(HkNfcRw::s_ResponseBuf + 1, HkNfcRw::m_NfcId, NFCID_LEN) != 0)) {
 			LOGE("searchServiceCode : ret=%d", ret);
 			return false;
 		}
 
 		len -= 9;
-		const uint8_t* p = &m_pHkNfcRw->s_ResponseBuf[9];
+		const uint8_t* p = &HkNfcRw::s_ResponseBuf[9];
 		if(len) {
 			uint16_t svc = uint16_t((*(p+1) << 8) | *p);
 #ifdef HKNFCRW_ENABLE_DEBUG
@@ -294,21 +293,21 @@ bool HkNfcF::push(const uint8_t* data, uint8_t dataLen)
 		return false;
 	}
 
-	m_pHkNfcRw->s_CommandBuf[0] = (uint8_t)(10 + dataLen);
-	m_pHkNfcRw->s_CommandBuf[1] = 0xb0;			//PUSH
-	memcpy(m_pHkNfcRw->s_CommandBuf + 2, m_pHkNfcRw->m_NfcId, NFCID_LEN);
-	m_pHkNfcRw->s_CommandBuf[10] = dataLen;
-	memcpy(m_pHkNfcRw->s_CommandBuf + 11, data, dataLen);
+	HkNfcRw::s_CommandBuf[0] = (uint8_t)(10 + dataLen);
+	HkNfcRw::s_CommandBuf[1] = 0xb0;			//PUSH
+	memcpy(HkNfcRw::s_CommandBuf + 2, HkNfcRw::m_NfcId, NFCID_LEN);
+	HkNfcRw::s_CommandBuf[10] = dataLen;
+	memcpy(HkNfcRw::s_CommandBuf + 11, data, dataLen);
 
 	// xx:IDm
 	// [cmd]b0 xx xx xx xx xx xx xx xx len (push data...)
 	ret = NfcPcd::communicateThruEx(
 						kPUSH_TIMEOUT,
-						m_pHkNfcRw->s_CommandBuf, 10 + dataLen,
-						m_pHkNfcRw->s_ResponseBuf, &responseLen);
-	if (!ret || (responseLen != 10) || (m_pHkNfcRw->s_ResponseBuf[0] != m_pHkNfcRw->s_CommandBuf[0]+1) ||
-	  (memcmp(m_pHkNfcRw->s_ResponseBuf + 1, m_pHkNfcRw->m_NfcId, NFCID_LEN) != 0) ||
-	  (m_pHkNfcRw->s_ResponseBuf[9] != dataLen)) {
+						HkNfcRw::s_CommandBuf, 10 + dataLen,
+						HkNfcRw::s_ResponseBuf, &responseLen);
+	if (!ret || (responseLen != 10) || (HkNfcRw::s_ResponseBuf[0] != HkNfcRw::s_CommandBuf[0]+1) ||
+	  (memcmp(HkNfcRw::s_ResponseBuf + 1, HkNfcRw::m_NfcId, NFCID_LEN) != 0) ||
+	  (HkNfcRw::s_ResponseBuf[9] != dataLen)) {
 
 		LOGE("push1 : ret=%d", ret);
 		return false;
@@ -316,18 +315,18 @@ bool HkNfcF::push(const uint8_t* data, uint8_t dataLen)
 
 	// xx:IDm
 	// [cmd]a4 xx xx xx xx xx xx xx xx 00
-	m_pHkNfcRw->s_CommandBuf[0] = 11;
-	m_pHkNfcRw->s_CommandBuf[1] = 0xa4;			//inactivate? activate2?
-	memcpy(m_pHkNfcRw->s_CommandBuf + 2, m_pHkNfcRw->m_NfcId, NFCID_LEN);
-	m_pHkNfcRw->s_CommandBuf[10] = 0x00;
+	HkNfcRw::s_CommandBuf[0] = 11;
+	HkNfcRw::s_CommandBuf[1] = 0xa4;			//inactivate? activate2?
+	memcpy(HkNfcRw::s_CommandBuf + 2, HkNfcRw::m_NfcId, NFCID_LEN);
+	HkNfcRw::s_CommandBuf[10] = 0x00;
 
 	ret = NfcPcd::communicateThruEx(
 						kDEFAULT_TIMEOUT,
-						m_pHkNfcRw->s_CommandBuf, 11,
-						m_pHkNfcRw->s_ResponseBuf, &responseLen);
-	if (!ret || (responseLen != 10) || (m_pHkNfcRw->s_ResponseBuf[0] != m_pHkNfcRw->s_CommandBuf[0]+1) ||
-	  (memcmp(m_pHkNfcRw->s_ResponseBuf + 1, m_pHkNfcRw->m_NfcId, NFCID_LEN) != 0) ||
-	  (m_pHkNfcRw->s_ResponseBuf[9] != 0x00)) {
+						HkNfcRw::s_CommandBuf, 11,
+						HkNfcRw::s_ResponseBuf, &responseLen);
+	if (!ret || (responseLen != 10) || (HkNfcRw::s_ResponseBuf[0] != HkNfcRw::s_CommandBuf[0]+1) ||
+	  (memcmp(HkNfcRw::s_ResponseBuf + 1, HkNfcRw::m_NfcId, NFCID_LEN) != 0) ||
+	  (HkNfcRw::s_ResponseBuf[9] != 0x00)) {
 
 		LOGE("push2 : ret=%d", ret);
 		return false;
@@ -419,22 +418,22 @@ uint8_t HkNfcF::falpPacket(uint16_t UId, uint16_t SId, uint8_t Cmd=kFCMD_SEND, u
 {
 	uint8_t offset = 9;
 	if(Cmd == kFCMD_BYE) {
-		m_pHkNfcRw->s_CommandBuf[1] = 0xae;
+		HkNfcRw::s_CommandBuf[1] = 0xae;
 		Len = 2;
-		m_pHkNfcRw->s_CommandBuf[9] = 0x00;
-		m_pHkNfcRw->s_CommandBuf[10] = 0x00;
+		HkNfcRw::s_CommandBuf[9] = 0x00;
+		HkNfcRw::s_CommandBuf[10] = 0x00;
 		offset += 2;
 	} else {
-		m_pHkNfcRw->s_CommandBuf[1] = 0xbc;
+		HkNfcRw::s_CommandBuf[1] = 0xbc;
 		LOGD("SendId: 0x%04x / Cmd:0x%02x", SId, Cmd);
 	}
-	m_pHkNfcRw->s_CommandBuf[2] = h16(UId);
-	m_pHkNfcRw->s_CommandBuf[3] = l16(UId);
-	m_pHkNfcRw->s_CommandBuf[4] = 0x01;
-	m_pHkNfcRw->s_CommandBuf[5] = (uint8_t)(Len + 3);
-	m_pHkNfcRw->s_CommandBuf[6] = Cmd;
-	m_pHkNfcRw->s_CommandBuf[7] = h16(SId);
-	m_pHkNfcRw->s_CommandBuf[8] = l16(SId);
+	HkNfcRw::s_CommandBuf[2] = h16(UId);
+	HkNfcRw::s_CommandBuf[3] = l16(UId);
+	HkNfcRw::s_CommandBuf[4] = 0x01;
+	HkNfcRw::s_CommandBuf[5] = (uint8_t)(Len + 3);
+	HkNfcRw::s_CommandBuf[6] = Cmd;
+	HkNfcRw::s_CommandBuf[7] = h16(SId);
+	HkNfcRw::s_CommandBuf[8] = l16(SId);
 
 	return offset;
 }
@@ -445,25 +444,25 @@ uint8_t HkNfcF::falpPacket(uint16_t UId, uint16_t SId, uint8_t Cmd=kFCMD_SEND, u
  */
 bool HkNfcF::falpCheck(uint8_t* pFalpLen, uint8_t* pRes, uint8_t ChkCode/*=0x01*/)
 {
-	if(hl16(m_pHkNfcRw->s_ResponseBuf[1], m_pHkNfcRw->s_ResponseBuf[2]) != m_FalpUId) {
+	if(hl16(HkNfcRw::s_ResponseBuf[1], HkNfcRw::s_ResponseBuf[2]) != m_FalpUId) {
 		LOGE("not same UID");
 		return false;
 	}
-	if(m_pHkNfcRw->s_ResponseBuf[3] != ChkCode) {
+	if(HkNfcRw::s_ResponseBuf[3] != ChkCode) {
 		LOGE("not ChkCode");
 		return false;
 	}
-	*pFalpLen = m_pHkNfcRw->s_ResponseBuf[4];
+	*pFalpLen = HkNfcRw::s_ResponseBuf[4];
 	if(*pFalpLen < 3) {
 		LOGE("less length");
 		return false;
 	}
-	*pRes = m_pHkNfcRw->s_ResponseBuf[5];
+	*pRes = HkNfcRw::s_ResponseBuf[5];
 	if(*pRes == kFCMD_ADIOS) {
 		LOGE("adios...");
 		return false;
 	}
-	m_FalpRId = hl16(m_pHkNfcRw->s_ResponseBuf[6], m_pHkNfcRw->s_ResponseBuf[7]);
+	m_FalpRId = hl16(HkNfcRw::s_ResponseBuf[6], HkNfcRw::s_ResponseBuf[7]);
 
 	return true;
 }
@@ -481,22 +480,22 @@ bool HkNfcF::falpObexWait(uint8_t responseLen)
 
 	while(true) {
 		bool bNext = false;
-		if((responseLen == 1) && (m_pHkNfcRw->s_ResponseBuf[0]) == 0x01) {
+		if((responseLen == 1) && (HkNfcRw::s_ResponseBuf[0]) == 0x01) {
 			LOGD("OBEX wait1 ----");
 			ret = NfcPcd::communicateThruEx(
 									0x04a6,		//TObはたぶんランダム値
 									0, 0,
-									m_pHkNfcRw->s_ResponseBuf, &responseLen);
+									HkNfcRw::s_ResponseBuf, &responseLen);
 			if(!ret) {
 				LOGE("OBEX wait1 fail");
 				break;
 			}
 			for(int i=0; i<responseLen; i++) {
-				LOGD("OBEX wait1: %02x", m_pHkNfcRw->s_ResponseBuf[i]);
+				LOGD("OBEX wait1: %02x", HkNfcRw::s_ResponseBuf[i]);
 			}
 		} else {
 			if(responseLen >= 5) {
-				uint8_t len = m_pHkNfcRw->s_ResponseBuf[4];
+				uint8_t len = HkNfcRw::s_ResponseBuf[4];
 				if(len >= 3) {
 					uint8_t rescode;
 					if(!falpCheck(&len, &rescode)) {
@@ -508,7 +507,7 @@ bool HkNfcF::falpObexWait(uint8_t responseLen)
 						bRet = true;
 					}
 					if(len > 3) {
-						const uint8_t* pObex = m_pHkNfcRw->s_ResponseBuf + 8;
+						const uint8_t* pObex = HkNfcRw::s_ResponseBuf + 8;
 						if(pObex[0] == kOBEX_SUCCESS) {
 							//OK
 							LOGD("OBEX wait1 : LEN : 0x%02x%02x", pObex[1], pObex[2]);
@@ -522,14 +521,14 @@ bool HkNfcF::falpObexWait(uint8_t responseLen)
 				offset = falpPacket(m_FalpUId, m_FalpSId);
 				ret = NfcPcd::communicateThruEx(
 										0x0000,
-										m_pHkNfcRw->s_CommandBuf, offset,
-										m_pHkNfcRw->s_ResponseBuf, &responseLen);
+										HkNfcRw::s_CommandBuf, offset,
+										HkNfcRw::s_ResponseBuf, &responseLen);
 				if(!ret) {
 					LOGE("OBEX wait2 fail");
 					break;
 				}
 				for(int i=0; i<responseLen; i++) {
-					LOGD("OBEX wait2: %02x", m_pHkNfcRw->s_ResponseBuf[i]);
+					LOGD("OBEX wait2: %02x", HkNfcRw::s_ResponseBuf[i]);
 				}
 				m_FalpSId++;
 			}
@@ -582,9 +581,9 @@ bool HkNfcF::falpInit()
 	}
 
 	// Polling(424Kbps)
-	memcpy(m_pHkNfcRw->s_CommandBuf, INLISTPASSIVETARGET, sizeof(INLISTPASSIVETARGET));
+	memcpy(HkNfcRw::s_CommandBuf, INLISTPASSIVETARGET, sizeof(INLISTPASSIVETARGET));
 	ret = NfcPcd::inListPassiveTarget(
-				m_pHkNfcRw->s_CommandBuf, sizeof(INLISTPASSIVETARGET),
+				HkNfcRw::s_CommandBuf, sizeof(INLISTPASSIVETARGET),
 				&pData, &responseLen);
 	if (!ret
 	  || (memcmp(&pData[3], INLISTPASSIVETARGET_RES, sizeof(INLISTPASSIVETARGET_RES)) != 0)) {
@@ -596,8 +595,8 @@ bool HkNfcF::falpInit()
 		LOGE("not 424kbps");
 		return false;
 	}
-	memcpy(m_pHkNfcRw->m_NfcId, pData + 6, NFCID_LEN);
-	m_pHkNfcRw->m_NfcIdLen = NFCID_LEN;
+	memcpy(HkNfcRw::m_NfcId, pData + 6, NFCID_LEN);
+	HkNfcRw::m_NfcIdLen = NFCID_LEN;
 
 	// RFConfiguration(?)
 	ret = NfcPcd::rfConfiguration(0x80, RFCFG2, sizeof(RFCFG2));
@@ -630,17 +629,17 @@ bool HkNfcF::falpPrepare(uint16_t uid)
 		0x00, 0x00,		//UID?
 		0x34, 0x08, 0x00, 0x00,
 	};
-	memcpy(m_pHkNfcRw->s_CommandBuf + 1, HS1, sizeof(HS1));
-	memcpy(m_pHkNfcRw->s_CommandBuf + 2, m_pHkNfcRw->m_NfcId, NFCID_LEN);
-	m_pHkNfcRw->s_CommandBuf[9] = h16(m_FalpUId);
-	m_pHkNfcRw->s_CommandBuf[10] = l16(m_FalpUId);
+	memcpy(HkNfcRw::s_CommandBuf + 1, HS1, sizeof(HS1));
+	memcpy(HkNfcRw::s_CommandBuf + 2, HkNfcRw::m_NfcId, NFCID_LEN);
+	HkNfcRw::s_CommandBuf[9] = h16(m_FalpUId);
+	HkNfcRw::s_CommandBuf[10] = l16(m_FalpUId);
 	ret = NfcPcd::communicateThruEx(
 							0x1068,
-							m_pHkNfcRw->s_CommandBuf, sizeof(HS1),
-							m_pHkNfcRw->s_ResponseBuf, &responseLen);
+							HkNfcRw::s_CommandBuf, sizeof(HS1),
+							HkNfcRw::s_ResponseBuf, &responseLen);
 	if(ret) {
 		for(int i=0; i<responseLen; i++) {
-			LOGD("%02x", m_pHkNfcRw->s_ResponseBuf[i]);
+			LOGD("%02x", HkNfcRw::s_ResponseBuf[i]);
 		}
 	} else {
 		LOGE("Thru1");
@@ -658,17 +657,17 @@ bool HkNfcF::falpPrepare(uint16_t uid)
 		0x00, 0x00, 0x00, 0x00,
 	};
 	offset = falpPacket(m_FalpUId, 0x0000, kFCMD_HELLO, sizeof(kHELLO));
-	memcpy(m_pHkNfcRw->s_CommandBuf + offset, kHELLO, sizeof(kHELLO));
+	memcpy(HkNfcRw::s_CommandBuf + offset, kHELLO, sizeof(kHELLO));
 	ret = NfcPcd::communicateThruEx(
 							0x1770,
-							m_pHkNfcRw->s_CommandBuf, uint8_t(offset + sizeof(kHELLO)),
-							m_pHkNfcRw->s_ResponseBuf, &responseLen);
+							HkNfcRw::s_CommandBuf, uint8_t(offset + sizeof(kHELLO)),
+							HkNfcRw::s_ResponseBuf, &responseLen);
 	if(!ret) {
 		LOGE("Thru2");
 		return false;
 	}
 	for(int i=0; i<responseLen; i++) {
-		LOGD("%02x", m_pHkNfcRw->s_ResponseBuf[i]);
+		LOGD("%02x", HkNfcRw::s_ResponseBuf[i]);
 	}
 	if(responseLen < 0x2f) {
 		LOGE("[HELLO]less response : %02x", responseLen);
@@ -699,11 +698,11 @@ bool HkNfcF::falpFinish()
 	offset = falpPacket(m_FalpUId, 0x0000, kFCMD_BYE);
 	ret = NfcPcd::communicateThruEx(
 						0x07d0,
-						m_pHkNfcRw->s_CommandBuf, offset,
-						m_pHkNfcRw->s_ResponseBuf, &responseLen);
+						HkNfcRw::s_CommandBuf, offset,
+						HkNfcRw::s_ResponseBuf, &responseLen);
 	if(ret) {
 		for(int i=0; i<responseLen; i++) {
-			LOGD("%02x", m_pHkNfcRw->s_ResponseBuf[i]);
+			LOGD("%02x", HkNfcRw::s_ResponseBuf[i]);
 		}
 	} else {
 		LOGE("Thru4");
@@ -735,14 +734,14 @@ bool HkNfcF::falpObexConnect()
 		0x80, 0x00,		//MAX LEN
 	};
 	offset = falpPacket(m_FalpUId, m_FalpSId, kFCMD_SEND, sizeof(OBEX_CONN));
-	memcpy(m_pHkNfcRw->s_CommandBuf + offset, OBEX_CONN, sizeof(OBEX_CONN));
+	memcpy(HkNfcRw::s_CommandBuf + offset, OBEX_CONN, sizeof(OBEX_CONN));
 	ret = NfcPcd::communicateThruEx(
 							0x0000,
-							m_pHkNfcRw->s_CommandBuf, offset + sizeof(OBEX_CONN),
-							m_pHkNfcRw->s_ResponseBuf, &responseLen);
+							HkNfcRw::s_CommandBuf, offset + sizeof(OBEX_CONN),
+							HkNfcRw::s_ResponseBuf, &responseLen);
 	if(ret) {
 //		for(int i=0; i<responseLen; i++) {
-//			LOGD("%02x", m_pHkNfcRw->s_ResponseBuf[i]);
+//			LOGD("%02x", HkNfcRw::s_ResponseBuf[i]);
 //		}
 	} else {
 		LOGE("CONN");
@@ -752,7 +751,7 @@ bool HkNfcF::falpObexConnect()
 
 	ret = falpObexWait(responseLen);
 	if(ret) {
-		const uint8_t* pObex = m_pHkNfcRw->s_ResponseBuf + 8;
+		const uint8_t* pObex = HkNfcRw::s_ResponseBuf + 8;
 		LOGD("Version : %02x", pObex[3]);
 		LOGD("Flags : %02x", pObex[4]);
 		LOGD("max LEN : 0x%02x%02x", pObex[5], pObex[6]);
@@ -794,11 +793,11 @@ bool HkNfcF::falpObexPut(const uint8_t* data, uint16_t dataLen)
 
 		uint8_t offset = falpPacket(m_FalpUId, m_FalpSId, cmd, len);
 		LOGD("offset : %d / len : %d", offset, len);
-		memcpy(m_pHkNfcRw->s_CommandBuf + offset, data + sendLen, len);
+		memcpy(HkNfcRw::s_CommandBuf + offset, data + sendLen, len);
 		ret = NfcPcd::communicateThruEx(
 								0x0000,
-								m_pHkNfcRw->s_CommandBuf, uint8_t(offset + len),
-								m_pHkNfcRw->s_ResponseBuf, &responseLen);
+								HkNfcRw::s_CommandBuf, uint8_t(offset + len),
+								HkNfcRw::s_ResponseBuf, &responseLen);
 		if(!ret) {
 			LOGE("PUT");
 			return false;
@@ -834,11 +833,11 @@ bool HkNfcF::falpObexDisconnect()
 		0x00, 0x03,		//LEN
 	};
 	offset = falpPacket(m_FalpUId, m_FalpSId, kFCMD_SEND, sizeof(OBEX_DISC));
-	memcpy(m_pHkNfcRw->s_CommandBuf + offset, OBEX_DISC, sizeof(OBEX_DISC));
+	memcpy(HkNfcRw::s_CommandBuf + offset, OBEX_DISC, sizeof(OBEX_DISC));
 	ret = NfcPcd::communicateThruEx(
 							0x0000,
-							m_pHkNfcRw->s_CommandBuf, offset + sizeof(OBEX_DISC),
-							m_pHkNfcRw->s_ResponseBuf, &responseLen);
+							HkNfcRw::s_CommandBuf, offset + sizeof(OBEX_DISC),
+							HkNfcRw::s_ResponseBuf, &responseLen);
 	if(!ret) {
 		LOGE("DISC");
 		return false;

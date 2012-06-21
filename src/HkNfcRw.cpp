@@ -12,33 +12,12 @@
 
 using namespace HkNfcRwMisc;
 
+HkNfcRw::Type	HkNfcRw::m_Type = HkNfcRw::NFC_NONE;				///< アクティブなNFCタイプ
+uint8_t		HkNfcRw::s_CommandBuf[HkNfcRw::CARD_COMMAND_LEN];		///< PCDへの送信バッファ
+uint8_t		HkNfcRw::s_ResponseBuf[HkNfcRw::CARD_RESPONSE_LEN];	///< PCDからの受信バッファ
+uint8_t		HkNfcRw::m_NfcId[HkNfcRw::MAX_NFCID_LEN];		///< 取得したNFCID
+uint8_t		HkNfcRw::m_NfcIdLen;					///< 取得済みのNFCID長。0の場合は未取得。
 
-/**
- * インスタンス取得(singleton)
- */
-HkNfcRw* HkNfcRw::getInstance()
-{
-	static HkNfcRw g_HkNfcRw;
-
-	return &g_HkNfcRw;
-}
-
-
-/**
- * コンストラクタ
- */
-HkNfcRw::HkNfcRw()
-	: m_Type(NFC_NONE)
-{
-}
-
-
-/**
- * デストラクタ
- */
-HkNfcRw::~HkNfcRw()
-{
-}
 
 
 /**

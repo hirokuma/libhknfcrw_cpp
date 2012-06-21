@@ -12,15 +12,14 @@ int nfc_test()
 {
 	bool b;
 	uint8_t recvbuf[256];
-	HkNfcRw* pRw = HkNfcRw::getInstance();
-	HkNfcDep dep(pRw);
+	HkNfcDep dep;
 
 	std::cout << "\nOpen" << std::endl;
 
-	b = pRw->open();
+	b = HkNfcRw::open();
 	if(!b) {
 		std::cout << "open fail" << std::endl;
-		pRw->close();
+		HkNfcRw::close();
 		return -1;
 	}
 
@@ -49,7 +48,7 @@ int nfc_test()
 	std::cout << "exec = " << b << std::endl;
 
 	std::cout << "\nClose" << std::endl;
-	pRw->close();
+	HkNfcRw::close();
 
 	return 0;
 }

@@ -16,11 +16,8 @@ public:
 	virtual bool write(const uint8_t* buf, uint8_t blockNo=0x00) { return false; }
 
 private:
-    HkNfcB(HkNfcRw* pRw);
+    HkNfcB();
     virtual ~HkNfcB();
-
-private:
-	HkNfcRw*	m_pHkNfcRw;
 };
 
 #endif /* HKNFCB_H */

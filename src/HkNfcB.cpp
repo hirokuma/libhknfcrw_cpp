@@ -11,8 +11,7 @@ namespace {
 	const uint8_t INLISTPASSIVETARGET_RES = 0x01;
 }
 
-HkNfcB::HkNfcB(HkNfcRw* pRw)
-	: m_pHkNfcRw(pRw)
+HkNfcB::HkNfcB()
 {
 }
 
@@ -41,10 +40,10 @@ bool HkNfcB::polling()
 		return false;
 	}
 
-	m_pHkNfcRw->m_NfcIdLen = 12;
-	//LOGD("SEL_RES:%02x", m_pHkNfcRw->m_NfcIdLen);
+	HkNfcRw::m_NfcIdLen = 12;
+	//LOGD("SEL_RES:%02x", HkNfcRw::m_NfcIdLen);
 
-	memcpy(m_pHkNfcRw->m_NfcId, m_pHkNfcRw->s_ResponseBuf + 4, m_pHkNfcRw->m_NfcIdLen);
+	memcpy(HkNfcRw::m_NfcId, HkNfcRw::s_ResponseBuf + 4, HkNfcRw::m_NfcIdLen);
 
 	return true;
 }

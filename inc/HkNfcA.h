@@ -52,11 +52,10 @@ public:
 	SelRes getSelRes() const { return m_SelRes; }
 
 private:
-    HkNfcA(HkNfcRw* pRw);
+    HkNfcA();
     virtual ~HkNfcA();
 
 private:
-	HkNfcRw*	m_pHkNfcRw;
 	uint16_t	m_SensRes;
 	SelRes		m_SelRes;
 	uint8_t		m_TargetNo;
