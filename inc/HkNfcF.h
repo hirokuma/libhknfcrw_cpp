@@ -40,7 +40,6 @@ public:
 
 private:
 	HkNfcRw*		m_pHkNfcRw;
-	NfcPcd*			m_pNfcPcd;
 	uint16_t		m_SystemCode;		///< システムコード
 	uint16_t		m_SvcCode;
 

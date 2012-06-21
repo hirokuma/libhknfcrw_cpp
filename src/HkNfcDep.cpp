@@ -39,7 +39,7 @@ namespace {
  * [in]	pRw		有効なHkNfcRwポインタ
  */
 HkNfcDep::HkNfcDep(HkNfcRw* pRw)
-	: m_pHkNfcRw(pRw), m_pNfcPcd(pRw->m_pNfcPcd),
+	: m_pHkNfcRw(pRw),
 	  m_DepMode(DEP_NONE), m_bInitiator(false)
 {
 }
@@ -98,7 +98,7 @@ bool HkNfcDep::startAsInitiator(DepMode mode, bool bLlcp/* =true */)
 		prm.GbLen = 0;
 	}
 
-	if(!m_pNfcPcd->inJumpForDep(&prm)) {
+	if(!NfcPcd::inJumpForDep(&prm)) {
 		LOGE("inJumpForDep\n");
 		return false;
 	}
@@ -195,20 +195,20 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		prm.pGb = LlcpGb;
 		prm.GbLen = (uint8_t)sizeof(LlcpGb);
 		//fAutomaticATR_RES=0
-		m_pNfcPcd->setParameters(0x18);
+		NfcPcd::setParameters(0x18);
 	} else {
 		prm.pGb = 0;
 		prm.GbLen = 0;
 		//fAutomaticATR_RES=1
-		m_pNfcPcd->setParameters(0x1c);
+		NfcPcd::setParameters(0x1c);
 	}
 
 	// Target時の通信性能向上
 	const uint8_t target[] = { 0x63, 0x0d, 0x08 };
-	m_pNfcPcd->writeRegister(target, sizeof(target));
+	NfcPcd::writeRegister(target, sizeof(target));
 
 	//Initiator待ち
-    if(!m_pNfcPcd->tgInitAsTarget(&prm)) {
+    if(!NfcPcd::tgInitAsTarget(&prm)) {
 		LOGE("tgInitAsTarget\n");
 		return false;
 	}
@@ -268,7 +268,7 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		m_pHkNfcRw->s_CommandBuf[2] = 0x0b;			// RLS_REQ
 		m_pHkNfcRw->s_CommandBuf[3] = pIniCmd[3];	// DID
 		uint8_t res_len;
-		m_pNfcPcd->communicateThruEx(timeout,
+		NfcPcd::communicateThruEx(timeout,
 						m_pHkNfcRw->s_CommandBuf, 4,
 						m_pHkNfcRw->s_ResponseBuf, &res_len);
 		m_DepMode = DEP_NONE;
@@ -279,13 +279,13 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 
 		// 特性を元に戻す
 		const uint8_t normal[] = { 0x63, 0x0d, 0x00 };
-		m_pNfcPcd->writeRegister(normal, sizeof(normal));
+		NfcPcd::writeRegister(normal, sizeof(normal));
 	} else if(m_DepMode == PSV_106K) {
 		// 106k passive
 
 		// 特性を元に戻す
 		const uint8_t normal[] = { 0x63, 0x0d, 0x00, 0x63, 0x01, 0x3b };
-		m_pNfcPcd->writeRegister(normal, sizeof(normal));
+		NfcPcd::writeRegister(normal, sizeof(normal));
 	} else if(m_DepMode == DEP_NONE) {
 		LOGE("invalid response\n");
 		return false;
@@ -353,10 +353,10 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		}
 
 
-		bool ret = m_pNfcPcd->tgSetGeneralBytes(&prm);
+		bool ret = NfcPcd::tgSetGeneralBytes(&prm);
 		if(ret) {
 			//モード確認
-			ret = m_pNfcPcd->getGeneralStatus(m_pHkNfcRw->s_ResponseBuf);
+			ret = NfcPcd::getGeneralStatus(m_pHkNfcRw->s_ResponseBuf);
 		}
 		if(ret) {
 			if(m_pHkNfcRw->s_ResponseBuf[NfcPcd::GGS_TXMODE] != NfcPcd::GGS_TXMODE_DEP) {
@@ -385,7 +385,7 @@ bool HkNfcDep::sendAsInitiator(
 			const void* pCommand, uint8_t CommandLen,
 			void* pResponse, uint8_t* pResponseLen)
 {
-	bool b = m_pNfcPcd->inDataExchange(
+	bool b = NfcPcd::inDataExchange(
 					reinterpret_cast<const uint8_t*>(pCommand), CommandLen,
 					reinterpret_cast<uint8_t*>(pResponse), pResponseLen);
 	return b;
@@ -407,7 +407,7 @@ bool HkNfcDep::stopAsInitiator()
 	m_pHkNfcRw->s_CommandBuf[2] = 0x0a;		// RLS_REQ
 	m_pHkNfcRw->s_CommandBuf[3] = 0x00;		// DID
 	uint8_t res_len;
-	bool b = m_pNfcPcd->communicateThruEx(timeout,
+	bool b = NfcPcd::communicateThruEx(timeout,
 					m_pHkNfcRw->s_CommandBuf, 4,
 					m_pHkNfcRw->s_ResponseBuf, &res_len);
 	return b;
@@ -425,7 +425,7 @@ bool HkNfcDep::stopAsInitiator()
 bool HkNfcDep::recvAsTarget(void* pCommand, uint8_t* pCommandLen)
 {
 	uint8_t* p = reinterpret_cast<uint8_t*>(pCommand);
-	bool b = m_pNfcPcd->tgGetData(p, pCommandLen);
+	bool b = NfcPcd::tgGetData(p, pCommandLen);
 	return b;
 }
 
@@ -439,7 +439,7 @@ bool HkNfcDep::recvAsTarget(void* pCommand, uint8_t* pCommandLen)
  */
 bool HkNfcDep::respAsTarget(const void* pResponse, uint8_t ResponseLen)
 {
-	bool b = m_pNfcPcd->tgSetData(
+	bool b = NfcPcd::tgSetData(
 					reinterpret_cast<const uint8_t*>(pResponse), ResponseLen);
 	return b;
 }

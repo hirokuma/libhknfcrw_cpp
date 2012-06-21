@@ -21,7 +21,7 @@ namespace {
 
 
 HkNfcA::HkNfcA(HkNfcRw* pRw)
-	: m_pHkNfcRw(pRw), m_pNfcPcd(pRw->m_pNfcPcd)
+	: m_pHkNfcRw(pRw)
 {
 }
 
@@ -42,7 +42,7 @@ bool HkNfcA::polling()
 	uint8_t responseLen;
 	uint8_t* pData;
 
-	ret = m_pNfcPcd->inListPassiveTarget(
+	ret = NfcPcd::inListPassiveTarget(
 					INLISTPASSIVETARGET, sizeof(INLISTPASSIVETARGET),
 					&pData, &responseLen);
 	if (!ret
@@ -101,7 +101,7 @@ bool HkNfcA::read(uint8_t* buf, uint8_t blockNo)
 #if 1
 	// Key A Authentication
 	m_pHkNfcRw->s_CommandBuf[1] = KEY_A_AUTH;
-	ret = m_pNfcPcd->inDataExchange(
+	ret = NfcPcd::inDataExchange(
 					m_pHkNfcRw->s_CommandBuf, 9 + m_pHkNfcRw->m_NfcIdLen,
 					m_pHkNfcRw->s_ResponseBuf, &len);
 	if(!ret) {
@@ -113,7 +113,7 @@ bool HkNfcA::read(uint8_t* buf, uint8_t blockNo)
 #if 0
 	// Key B Authentication
 	m_pHkNfcRw->s_CommandBuf[1] = KEY_B_AUTH;
-	ret = m_pNfcPcd->inDataExchange(
+	ret = NfcPcd::inDataExchange(
 					m_pHkNfcRw->s_CommandBuf, 9 + m_pHkNfcRw->m_NfcIdLen,
 					m_pHkNfcRw->s_ResponseBuf, &len);
 	if(!ret) {
@@ -124,7 +124,7 @@ bool HkNfcA::read(uint8_t* buf, uint8_t blockNo)
 
 	// Read
 	m_pHkNfcRw->s_CommandBuf[1] = READ;
-	ret = m_pNfcPcd->inDataExchange(
+	ret = NfcPcd::inDataExchange(
 					m_pHkNfcRw->s_CommandBuf, 3,
 					m_pHkNfcRw->s_ResponseBuf, &len);
 	if(ret) {

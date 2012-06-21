@@ -16,6 +16,9 @@
 
 using namespace HkNfcRwMisc;
 
+bool NfcPcd::m_bOpened = false;		///< オープンしているかどうか
+
+
 /**
  * const
  */
@@ -77,45 +80,6 @@ namespace {
 // 実装
 ///////////////////////////////////////////////////////////////////////////
 
-/**
- * インスタンス取得(singleton)
- */
-NfcPcd* NfcPcd::getInstance()
-{
-	static NfcPcd sNfcPcd;
-	
-	return &sNfcPcd;
-}
-
-
-/**
- * コンストラクタ
- */
-NfcPcd::NfcPcd()
-	: m_bOpened(false)
-{
-	s_SendBuf[0] = 0x00;
-	s_SendBuf[1] = 0x00;
-	s_SendBuf[2] = 0xff;
-}
-
-
-/**
- * デストラクタ
- *
- * @attention		- ポートが開いている場合は、#rfOff()を呼び出す。
- */
-NfcPcd::~NfcPcd()
-{
-	if(m_bOpened) {
-		rfOff();
-		reset();
-	}
-	portClose();
-
-	m_bOpened = false;
-}
-
 
 /**
  * シリアルポートオープン
@@ -125,6 +89,12 @@ NfcPcd::~NfcPcd()
  */
 bool NfcPcd::portOpen()
 {
+	if(m_bOpened) {
+		return false;
+	}
+	s_SendBuf[0] = 0x00;
+	s_SendBuf[1] = 0x00;
+	s_SendBuf[2] = 0xff;
 	m_bOpened = DevAccess::open();
 	return m_bOpened;
 }
@@ -135,8 +105,10 @@ bool NfcPcd::portOpen()
  */
 void NfcPcd::portClose()
 {
-	DevAccess::close();
-	m_bOpened = false;
+	if(m_bOpened) {
+		DevAccess::close();
+		m_bOpened = false;
+	}
 }
 
 

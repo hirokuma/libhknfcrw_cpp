@@ -125,7 +125,6 @@ public:
 
 private:
 	HkNfcRw*		m_pHkNfcRw;
-	NfcPcd*			m_pNfcPcd;
 	DepMode			m_DepMode;
 	bool			m_bInitiator;
 };

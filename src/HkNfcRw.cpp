@@ -30,7 +30,6 @@ HkNfcRw* HkNfcRw::getInstance()
 HkNfcRw::HkNfcRw()
 	: m_Type(NFC_NONE)
 {
-	m_pNfcPcd = NfcPcd::getInstance();
 }
 
 
@@ -58,13 +57,13 @@ bool HkNfcRw::open()
 {
 	LOGD("%s\n", __PRETTY_FUNCTION__);
 
-	if(!m_pNfcPcd->portOpen()) {
+	if(!NfcPcd::portOpen()) {
 		return false;
 	}
 
-	bool ret = m_pNfcPcd->init();
+	bool ret = NfcPcd::init();
 	if(ret) {
-		ret = m_pNfcPcd->getFirmwareVersion(s_ResponseBuf);
+		ret = NfcPcd::getFirmwareVersion(s_ResponseBuf);
 		if(ret) {
 			LOGD("IC:%02x / Ver:%02x / Rev:%02x / Support:%02x\n",
 				s_ResponseBuf[NfcPcd::GF_IC], s_ResponseBuf[NfcPcd::GF_VER],
@@ -72,7 +71,7 @@ bool HkNfcRw::open()
 		}
 
 #if 0
-		ret = m_pNfcPcd->getGeneralStatus(s_ResponseBuf);
+		ret = NfcPcd::getGeneralStatus(s_ResponseBuf);
 		if(ret) {
 			LOGD("Err:%02x / Field:%02x / NbTg:%02x / Tg:%02x / TxMode:%02x\n",
 				s_ResponseBuf[NfcPcd::GGS_ERR],
@@ -86,7 +85,7 @@ bool HkNfcRw::open()
 
 #if 0
 		uint8_t res_len;
-		ret = m_pNfcPcd->diagnose(0x00, 0, 0, s_ResponseBuf, &res_len);
+		ret = NfcPcd::diagnose(0x00, 0, 0, s_ResponseBuf, &res_len);
 		if(ret) {
 			LOGD("res_len = %d\n", res_len);
 		}
@@ -110,10 +109,10 @@ bool HkNfcRw::open()
  */
 void HkNfcRw::close()
 {
-	if(m_pNfcPcd->isOpened()) {
-		m_pNfcPcd->reset();
-		m_pNfcPcd->rfOff();
-		m_pNfcPcd->portClose();
+	if(NfcPcd::isOpened()) {
+		NfcPcd::reset();
+		NfcPcd::rfOff();
+		NfcPcd::portClose();
 	}
 }
 

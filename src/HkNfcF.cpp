@@ -45,7 +45,7 @@ namespace {
 
 
 HkNfcF::HkNfcF(HkNfcRw* pRw)
-	: m_pHkNfcRw(pRw), m_pNfcPcd(pRw->m_pNfcPcd),
+	: m_pHkNfcRw(pRw),
 		m_SystemCode(kSC_BROADCAST),
 		m_SvcCode(SVCCODE_RW)
 #ifdef HKNFCRW_USE_FALP
@@ -106,7 +106,7 @@ bool HkNfcF::polling(uint16_t systemCode /* = 0xffff */)
 	m_pHkNfcRw->s_CommandBuf[2] = h16(systemCode);
 	m_pHkNfcRw->s_CommandBuf[3] = l16(systemCode);
 
-	ret = m_pNfcPcd->inListPassiveTarget(
+	ret = NfcPcd::inListPassiveTarget(
 				m_pHkNfcRw->s_CommandBuf, sizeof(INLISTPASSIVETARGET),
 				&pData, &responseLen);
 	if (!ret
@@ -115,7 +115,7 @@ bool HkNfcF::polling(uint16_t systemCode /* = 0xffff */)
 
 		//212Kbps
 		m_pHkNfcRw->s_CommandBuf[0] = 0x01;
-		ret = m_pNfcPcd->inListPassiveTarget(
+		ret = NfcPcd::inListPassiveTarget(
 				m_pHkNfcRw->s_CommandBuf, sizeof(INLISTPASSIVETARGET),
 				&pData, &responseLen);
 		if (!ret
@@ -151,7 +151,7 @@ bool HkNfcF::read(uint8_t* buf, uint8_t blockNo/*=0x00*/)
 	uint16_t blist = create_blocklist2(blockNo);
 	m_pHkNfcRw->s_CommandBuf[14] = h16(blist);
 	m_pHkNfcRw->s_CommandBuf[15] = l16(blist);
-	bool ret = m_pNfcPcd->communicateThruEx(
+	bool ret = NfcPcd::communicateThruEx(
 					kDEFAULT_TIMEOUT,
 					m_pHkNfcRw->s_CommandBuf, 16,
 					m_pHkNfcRw->s_ResponseBuf, &len);
@@ -196,7 +196,7 @@ bool HkNfcF::reqSystemCode(uint8_t* pNums)
 	m_pHkNfcRw->s_CommandBuf[0] = 10;
 	m_pHkNfcRw->s_CommandBuf[1] = 0x0c;
 	memcpy(m_pHkNfcRw->s_CommandBuf + 2, m_pHkNfcRw->m_NfcId, NFCID_LEN);
-	bool ret = m_pNfcPcd->communicateThruEx(
+	bool ret = NfcPcd::communicateThruEx(
 						kDEFAULT_TIMEOUT,
 						m_pHkNfcRw->s_CommandBuf, 10,
 						m_pHkNfcRw->s_ResponseBuf, &len);
@@ -233,7 +233,7 @@ bool HkNfcF::searchServiceCode()
 	do {
 		m_pHkNfcRw->s_CommandBuf[10] = l16(loop);
 		m_pHkNfcRw->s_CommandBuf[11] = h16(loop);
-		bool ret = m_pNfcPcd->communicateThruEx(
+		bool ret = NfcPcd::communicateThruEx(
 							kDEFAULT_TIMEOUT,
 							m_pHkNfcRw->s_CommandBuf, 12,
 							m_pHkNfcRw->s_ResponseBuf, &len);
@@ -302,7 +302,7 @@ bool HkNfcF::push(const uint8_t* data, uint8_t dataLen)
 
 	// xx:IDm
 	// [cmd]b0 xx xx xx xx xx xx xx xx len (push data...)
-	ret = m_pNfcPcd->communicateThruEx(
+	ret = NfcPcd::communicateThruEx(
 						kPUSH_TIMEOUT,
 						m_pHkNfcRw->s_CommandBuf, 10 + dataLen,
 						m_pHkNfcRw->s_ResponseBuf, &responseLen);
@@ -321,7 +321,7 @@ bool HkNfcF::push(const uint8_t* data, uint8_t dataLen)
 	memcpy(m_pHkNfcRw->s_CommandBuf + 2, m_pHkNfcRw->m_NfcId, NFCID_LEN);
 	m_pHkNfcRw->s_CommandBuf[10] = 0x00;
 
-	ret = m_pNfcPcd->communicateThruEx(
+	ret = NfcPcd::communicateThruEx(
 						kDEFAULT_TIMEOUT,
 						m_pHkNfcRw->s_CommandBuf, 11,
 						m_pHkNfcRw->s_ResponseBuf, &responseLen);
@@ -483,7 +483,7 @@ bool HkNfcF::falpObexWait(uint8_t responseLen)
 		bool bNext = false;
 		if((responseLen == 1) && (m_pHkNfcRw->s_ResponseBuf[0]) == 0x01) {
 			LOGD("OBEX wait1 ----");
-			ret = m_pNfcPcd->communicateThruEx(
+			ret = NfcPcd::communicateThruEx(
 									0x04a6,		//TObはたぶんランダム値
 									0, 0,
 									m_pHkNfcRw->s_ResponseBuf, &responseLen);
@@ -520,7 +520,7 @@ bool HkNfcF::falpObexWait(uint8_t responseLen)
 			if(!bNext) {
 				LOGD("OBEX wait2----");
 				offset = falpPacket(m_FalpUId, m_FalpSId);
-				ret = m_pNfcPcd->communicateThruEx(
+				ret = NfcPcd::communicateThruEx(
 										0x0000,
 										m_pHkNfcRw->s_CommandBuf, offset,
 										m_pHkNfcRw->s_ResponseBuf, &responseLen);
@@ -575,7 +575,7 @@ bool HkNfcF::falpInit()
 	uint8_t* pData;
 
 	// RFConfiguration(Analog Settings)
-	ret = m_pNfcPcd->rfConfiguration(0x0b, RFCFG1, sizeof(RFCFG1));
+	ret = NfcPcd::rfConfiguration(0x0b, RFCFG1, sizeof(RFCFG1));
 	if(!ret) {
 		LOGE("RFConfig fail.");
 		return false;
@@ -583,7 +583,7 @@ bool HkNfcF::falpInit()
 
 	// Polling(424Kbps)
 	memcpy(m_pHkNfcRw->s_CommandBuf, INLISTPASSIVETARGET, sizeof(INLISTPASSIVETARGET));
-	ret = m_pNfcPcd->inListPassiveTarget(
+	ret = NfcPcd::inListPassiveTarget(
 				m_pHkNfcRw->s_CommandBuf, sizeof(INLISTPASSIVETARGET),
 				&pData, &responseLen);
 	if (!ret
@@ -600,7 +600,7 @@ bool HkNfcF::falpInit()
 	m_pHkNfcRw->m_NfcIdLen = NFCID_LEN;
 
 	// RFConfiguration(?)
-	ret = m_pNfcPcd->rfConfiguration(0x80, RFCFG2, sizeof(RFCFG2));
+	ret = NfcPcd::rfConfiguration(0x80, RFCFG2, sizeof(RFCFG2));
 	if(!ret) {
 		LOGE("RFConfig fail 2.");
 		return false;
@@ -634,7 +634,7 @@ bool HkNfcF::falpPrepare(uint16_t uid)
 	memcpy(m_pHkNfcRw->s_CommandBuf + 2, m_pHkNfcRw->m_NfcId, NFCID_LEN);
 	m_pHkNfcRw->s_CommandBuf[9] = h16(m_FalpUId);
 	m_pHkNfcRw->s_CommandBuf[10] = l16(m_FalpUId);
-	ret = m_pNfcPcd->communicateThruEx(
+	ret = NfcPcd::communicateThruEx(
 							0x1068,
 							m_pHkNfcRw->s_CommandBuf, sizeof(HS1),
 							m_pHkNfcRw->s_ResponseBuf, &responseLen);
@@ -659,7 +659,7 @@ bool HkNfcF::falpPrepare(uint16_t uid)
 	};
 	offset = falpPacket(m_FalpUId, 0x0000, kFCMD_HELLO, sizeof(kHELLO));
 	memcpy(m_pHkNfcRw->s_CommandBuf + offset, kHELLO, sizeof(kHELLO));
-	ret = m_pNfcPcd->communicateThruEx(
+	ret = NfcPcd::communicateThruEx(
 							0x1770,
 							m_pHkNfcRw->s_CommandBuf, uint8_t(offset + sizeof(kHELLO)),
 							m_pHkNfcRw->s_ResponseBuf, &responseLen);
@@ -697,7 +697,7 @@ bool HkNfcF::falpFinish()
 
 	LOGD("end----");
 	offset = falpPacket(m_FalpUId, 0x0000, kFCMD_BYE);
-	ret = m_pNfcPcd->communicateThruEx(
+	ret = NfcPcd::communicateThruEx(
 						0x07d0,
 						m_pHkNfcRw->s_CommandBuf, offset,
 						m_pHkNfcRw->s_ResponseBuf, &responseLen);
@@ -711,7 +711,7 @@ bool HkNfcF::falpFinish()
 	}
 
 	//停止
-	m_pNfcPcd->rfOff();
+	NfcPcd::rfOff();
 
 	return true;
 }
@@ -736,7 +736,7 @@ bool HkNfcF::falpObexConnect()
 	};
 	offset = falpPacket(m_FalpUId, m_FalpSId, kFCMD_SEND, sizeof(OBEX_CONN));
 	memcpy(m_pHkNfcRw->s_CommandBuf + offset, OBEX_CONN, sizeof(OBEX_CONN));
-	ret = m_pNfcPcd->communicateThruEx(
+	ret = NfcPcd::communicateThruEx(
 							0x0000,
 							m_pHkNfcRw->s_CommandBuf, offset + sizeof(OBEX_CONN),
 							m_pHkNfcRw->s_ResponseBuf, &responseLen);
@@ -795,7 +795,7 @@ bool HkNfcF::falpObexPut(const uint8_t* data, uint16_t dataLen)
 		uint8_t offset = falpPacket(m_FalpUId, m_FalpSId, cmd, len);
 		LOGD("offset : %d / len : %d", offset, len);
 		memcpy(m_pHkNfcRw->s_CommandBuf + offset, data + sendLen, len);
-		ret = m_pNfcPcd->communicateThruEx(
+		ret = NfcPcd::communicateThruEx(
 								0x0000,
 								m_pHkNfcRw->s_CommandBuf, uint8_t(offset + len),
 								m_pHkNfcRw->s_ResponseBuf, &responseLen);
@@ -835,7 +835,7 @@ bool HkNfcF::falpObexDisconnect()
 	};
 	offset = falpPacket(m_FalpUId, m_FalpSId, kFCMD_SEND, sizeof(OBEX_DISC));
 	memcpy(m_pHkNfcRw->s_CommandBuf + offset, OBEX_DISC, sizeof(OBEX_DISC));
-	ret = m_pNfcPcd->communicateThruEx(
+	ret = NfcPcd::communicateThruEx(
 							0x0000,
 							m_pHkNfcRw->s_CommandBuf, offset + sizeof(OBEX_DISC),
 							m_pHkNfcRw->s_ResponseBuf, &responseLen);

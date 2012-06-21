@@ -72,20 +72,17 @@ public:
 		uint8_t				CommandLen;		///< [out]pCommandのサイズ(不要なら0)
 	};
 
-public:
-	static NfcPcd* getInstance();
-
 private:
 	/// @addtogroup gp_port	Device Port Control
 	/// @ingroup gp_NfcPcd
 	/// @{
 
 	/// オープン
-	bool portOpen();
+	static bool portOpen();
 	/// オープン済みかどうか
-	bool isOpened() const { return m_bOpened; }
+	static bool isOpened() { return m_bOpened; }
 	/// クローズ
-	void portClose();
+	static void portClose();
 	/// @}
 
 
@@ -99,27 +96,27 @@ public:
 	/// @{
 
 	/// デバイス初期化
-	bool init();
+	static bool init();
 	/// RF出力停止
-	bool rfOff();
+	static bool rfOff();
 	/// RFConfiguration
-	bool rfConfiguration(uint8_t cmd, const uint8_t* pCommand, uint8_t CommandLen);
+	static bool rfConfiguration(uint8_t cmd, const uint8_t* pCommand, uint8_t CommandLen);
 	/// Reset
-	bool reset();
+	static bool reset();
 	/// Diagnose
-	bool diagnose(
+	static bool diagnose(
 			uint8_t cmd, const uint8_t* pCommand, uint8_t CommandLen,
 			uint8_t* pResponse, uint8_t* pResponseLen);
 	/// SetParameters
-	bool setParameters(uint8_t val);
+	static bool setParameters(uint8_t val);
 	/// WriteRegister
-	bool writeRegister(const uint8_t* pCommand, uint8_t CommandLen);
+	static bool writeRegister(const uint8_t* pCommand, uint8_t CommandLen);
 	/// GetFirmware
 	static const int GF_IC = 0;				///< GetFirmware:IC
 	static const int GF_VER = 1;			///< GetFirmware:Ver
 	static const int GF_REV = 2;			///< GetFirmware:Rev
 	static const int GF_SUPPORT = 3;		///< GetFirmware:Support
-	bool getFirmwareVersion(uint8_t* pResponse);
+	static bool getFirmwareVersion(uint8_t* pResponse);
 	/// GetGeneralStatus
 	static const int GGS_ERR = 0;			///< GetGeneralStatus:??
 	static const int GGS_FIELD = 1;			///< GetGeneralStatus:??
@@ -128,15 +125,15 @@ public:
 	static const int GGS_TXMODE = 4;		///< GetGeneralStatus:??
 	static const int GGS_TXMODE_DEP = 0x03;			///< GetGeneralStatus:DEP
 	static const int GGS_TXMODE_FALP = 0x05;		///< GetGeneralStatus:FALP
-	bool getGeneralStatus(uint8_t* pResponse);
+	static bool getGeneralStatus(uint8_t* pResponse);
 	/// CommunicateThruEX
-	bool communicateThruEx();
+	static bool communicateThruEx();
 	/// CommunicateThruEX
-	bool communicateThruEx(
+	static bool communicateThruEx(
 			const uint8_t* pCommand, uint8_t CommandLen,
 			uint8_t* pResponse, uint8_t* pResponseLen);
 	/// CommunicateThruEX
-	bool communicateThruEx(
+	static bool communicateThruEx(
 			uint16_t Timeout,
 			const uint8_t* pCommand, uint8_t CommandLen,
 			uint8_t* pResponse, uint8_t* pResponseLen);
@@ -149,24 +146,24 @@ public:
 
 	/// InJumpForDEP or ImJumpForPSL
 private:
-	bool _inJump(uint8_t Cmd, DepInitiatorParam* pParam);
+	static bool _inJump(uint8_t Cmd, DepInitiatorParam* pParam);
 
 public:
 	/// InJumpForDEP
-	bool inJumpForDep(DepInitiatorParam* pParam);
+	static bool inJumpForDep(DepInitiatorParam* pParam);
 	/// InJumpForPSL
-	bool inJumpForPsl(DepInitiatorParam* pParam);
+	static bool inJumpForPsl(DepInitiatorParam* pParam);
 	/// InListPassiveTarget
-	bool inListPassiveTarget(
+	static bool inListPassiveTarget(
 			const uint8_t* pInitData, uint8_t InitLen,
 			uint8_t** ppTgData, uint8_t* pTgLen);
 	/// InDataExchange
-	bool inDataExchange(
+	static bool inDataExchange(
 			const uint8_t* pCommand, uint8_t CommandLen,
 			uint8_t* pResponse, uint8_t* pResponseLen,
 			bool bCoutinue=false);
 	/// InCommunicateThru
-	bool inCommunicateThru(
+	static bool inCommunicateThru(
 			const uint8_t* pCommand, uint8_t CommandLen,
 			uint8_t* pResponse, uint8_t* pResponseLen);
 	/// @}
@@ -177,21 +174,21 @@ public:
 	/// @{
 
 	/// TgInitAsTarget
-	bool tgInitAsTarget(TargetParam* pParam);
+	static bool tgInitAsTarget(TargetParam* pParam);
 	/// TgSetGeneralBytes
-	bool tgSetGeneralBytes(const TargetParam* pParam);
+	static bool tgSetGeneralBytes(const TargetParam* pParam);
 	/// TgResponseToInitiator
-	bool tgResponseToInitiator(
+	static bool tgResponseToInitiator(
 			const uint8_t* pData, uint8_t DataLen,
 			uint8_t* pResponse=0, uint8_t* pResponseLen=0);
 	/// TgGetInitiatorCommand
-	bool tgGetInitiatorCommand(uint8_t* pResponse, uint8_t* pResponseLen);
+	static bool tgGetInitiatorCommand(uint8_t* pResponse, uint8_t* pResponseLen);
 	/// TgGetData
-	bool tgGetData(uint8_t* pCommand, uint8_t* pCommandLen);
+	static bool tgGetData(uint8_t* pCommand, uint8_t* pCommandLen);
 	/// TgSetData
-	bool tgSetData(const uint8_t* pResponse, uint8_t ResponseLen);
+	static bool tgSetData(const uint8_t* pResponse, uint8_t ResponseLen);
 	/// InRelease
-	bool inRelease();
+	static bool inRelease();
 	/// @}
 
 
@@ -201,19 +198,19 @@ private:
 	/// @{
 
 	/// パケット送受信
-	bool sendCmd(
+	static bool sendCmd(
 			const uint8_t* pCommand, uint16_t CommandLen,
 			uint8_t* pResponse, uint16_t* pResponseLen,
 			bool bRecv=true);
 	/// レスポンス受信
-	bool recvResp(uint8_t* pResponse, uint16_t* pResponseLen, uint8_t CmdCode=0xff);
+	static bool recvResp(uint8_t* pResponse, uint16_t* pResponseLen, uint8_t CmdCode=0xff);
 	/// ACK送信
-	void sendAck();
+	static void sendAck();
 	/// @}
 
 
 private:
-	bool m_bOpened;                             ///< オープンしているかどうか
+	static bool m_bOpened;                             ///< オープンしているかどうか
 
 	friend class HkNfcRw;
 };

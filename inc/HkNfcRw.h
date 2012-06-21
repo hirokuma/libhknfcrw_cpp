@@ -100,7 +100,6 @@ public:
 
 
 private:
-    NfcPcd*		m_pNfcPcd;			///< PCDインスタンス
 	Type		m_Type;				///< アクティブなNFCタイプ
 
     uint8_t		s_CommandBuf[CARD_COMMAND_LEN];		///< PCDへの送信バッファ

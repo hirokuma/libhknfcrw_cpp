@@ -56,8 +56,7 @@ private:
     virtual ~HkNfcA();
 
 private:
-	HkNfcRw*		m_pHkNfcRw;
-	NfcPcd*		m_pNfcPcd;
+	HkNfcRw*	m_pHkNfcRw;
 	uint16_t	m_SensRes;
 	SelRes		m_SelRes;
 	uint8_t		m_TargetNo;

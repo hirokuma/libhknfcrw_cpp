@@ -12,7 +12,7 @@ namespace {
 }
 
 HkNfcB::HkNfcB(HkNfcRw* pRw)
-	: m_pHkNfcRw(pRw), m_pNfcPcd(pRw->m_pNfcPcd)
+	: m_pHkNfcRw(pRw)
 {
 }
 
@@ -32,7 +32,7 @@ bool HkNfcB::polling()
 	uint8_t responseLen;
 	uint8_t* pData;
 
-	ret = m_pNfcPcd->inListPassiveTarget(
+	ret = NfcPcd::inListPassiveTarget(
 					INLISTPASSIVETARGET, sizeof(INLISTPASSIVETARGET),
 					&pData, &responseLen);
 	if (!ret

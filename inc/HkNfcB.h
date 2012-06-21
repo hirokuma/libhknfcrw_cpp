@@ -21,7 +21,6 @@ private:
 
 private:
 	HkNfcRw*	m_pHkNfcRw;
-	NfcPcd*		m_pNfcPcd;
 };
 
 #endif /* HKNFCB_H */
