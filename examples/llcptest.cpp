@@ -12,7 +12,6 @@ int nfc_test()
 {
 	bool b;
 	uint8_t recvbuf[256];
-	HkNfcDep dep;
 
 	std::cout << "\nOpen" << std::endl;
 
@@ -30,16 +29,16 @@ int nfc_test()
 	if(selnum == 0) {
 		std::cout << "\nInitiator" << std::endl;
 		
-		b = dep.startAsInitiator(HkNfcDep::PSV_424K);
+		b = HkNfcDep::startAsInitiator(HkNfcDep::PSV_424K);
 		
 		if(b) {
 			std::cout << "OK" << std::endl;
-			dep.stopAsInitiator();
+			HkNfcDep::stopAsInitiator();
 		}
 	} else {
 		std::cout << "\nTarget" << std::endl;
 
-		b = dep.startAsTarget();
+		b = HkNfcDep::startAsTarget();
 		
 		if(b) {
 			std::cout << "OK" << std::endl;

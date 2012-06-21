@@ -12,6 +12,8 @@
 using namespace HkNfcRwMisc;
 
 
+HkNfcDep::DepMode		HkNfcDep::m_DepMode = HkNfcDep::DEP_NONE;
+bool						HkNfcDep::m_bInitiator = false;
 
 namespace {
 	/// LLCPのGeneralBytes
@@ -30,25 +32,6 @@ namespace {
 	// PDU解析の戻り値で使用する。
 	// 「このPDUのデータ部はService Data Unitなので、末尾までデータです」という意味。
 	const uint8_t SDU = 0xff;
-}
-
-
-/**
- * コンストラクタ
- * 
- * [in]	pRw		有効なHkNfcRwポインタ
- */
-HkNfcDep::HkNfcDep()
-	: m_DepMode(DEP_NONE), m_bInitiator(false)
-{
-}
-
-
-/**
- * デストラクタ
- */
-HkNfcDep::~HkNfcDep()
-{
 }
 
 
@@ -448,7 +431,7 @@ bool HkNfcDep::respAsTarget(const void* pResponse, uint8_t ResponseLen)
  * LLCP
  *******************************************************************/
 
-uint8_t (HkNfcDep::*HkNfcDep::sAnalyzePdu[])(const uint8_t* pBuf) = {
+uint8_t (*HkNfcDep::sAnalyzePdu[])(const uint8_t* pBuf) = {
 	&HkNfcDep::analyzeSymm,
 	&HkNfcDep::analyzePax,
 	&HkNfcDep::analyzeAgf,
@@ -472,7 +455,7 @@ uint8_t HkNfcDep::analyzePdu(const uint8_t* pBuf, PduType* pResPdu)
 	*pResPdu = (PduType)(((*pBuf & 0x03) << 2) | (((*pBuf+1) & 0x0c) >> 6));
 	uint8_t next;
 
-	next = (this->*sAnalyzePdu[*pResPdu])(pBuf);
+	next = (*sAnalyzePdu[*pResPdu])(pBuf);
 	return next;
 }
 

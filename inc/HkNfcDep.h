@@ -55,9 +55,6 @@ public:
 		PDU_RESV4	= 0x0f
 	};
 
-public:
-	HkNfcDep();
-	virtual ~HkNfcDep();
 
 public:
 	/// @addtogroup gp_depinit	NFC-DEP(Initiator)
@@ -65,13 +62,13 @@ public:
 	/// @{
 
 	/// InJumpForDEP
-	bool startAsInitiator(DepMode mode, bool bLlcp = true);
+	static bool startAsInitiator(DepMode mode, bool bLlcp = true);
 	/// InDataExchange
-	bool sendAsInitiator(
+	static bool sendAsInitiator(
 			const void* pCommand, uint8_t CommandLen,
 			void* pResponse, uint8_t* pResponseLen);
 	/// RLS_REQ
-	bool stopAsInitiator();
+	static bool stopAsInitiator();
 	/// @}
 
 public:
@@ -80,11 +77,11 @@ public:
 	/// @{
 
 	/// TgInitTarget, TgSetGeneralBytes
-	bool startAsTarget(bool bLlcp=true);
+	static bool startAsTarget(bool bLlcp=true);
 	/// TgGetData
-	bool recvAsTarget(void* pCommand, uint8_t* pCommandLen);
+	static bool recvAsTarget(void* pCommand, uint8_t* pCommandLen);
 	/// TgSetData
-	bool respAsTarget(const void* pResponse, uint8_t ResponseLen);
+	static bool respAsTarget(const void* pResponse, uint8_t ResponseLen);
 	/// @}
 
 
@@ -92,7 +89,7 @@ public:
 	/// @addtogroup gp_depstat	Status
 	/// @ingroup gp_NfcDep
 	/// @{
-	DepMode getDepMode() const { return m_DepMode; }
+	static DepMode getDepMode() { return m_DepMode; }
 	/// @}
 
 
@@ -103,29 +100,29 @@ public:
 
 	/// @}
 
-public:
-	uint8_t analyzePdu(const uint8_t* pBuf, PduType* pResPdu);
-	uint8_t analyzeSymm(const uint8_t* pBuf);
-	uint8_t analyzePax(const uint8_t* pBuf);
-	uint8_t analyzeAgf(const uint8_t* pBuf);
-	uint8_t analyzeUi(const uint8_t* pBuf);
-	uint8_t analyzeConn(const uint8_t* pBuf);
-	uint8_t analyzeDisc(const uint8_t* pBuf);
-	uint8_t analyzeCc(const uint8_t* pBuf);
-	uint8_t analyzeDm(const uint8_t* pBuf);
-	uint8_t analyzeFrmr(const uint8_t* pBuf);
-	uint8_t analyzeI(const uint8_t* pBuf);
-	uint8_t analyzeRr(const uint8_t* pBuf);
-	uint8_t analyzeRnr(const uint8_t* pBuf);
-	uint8_t analyzeDummy(const uint8_t* pBuf);
-	static uint8_t (HkNfcDep::*sAnalyzePdu[])(const uint8_t* pBuf);
+private:
+	static uint8_t analyzePdu(const uint8_t* pBuf, PduType* pResPdu);
+	static uint8_t analyzeSymm(const uint8_t* pBuf);
+	static uint8_t analyzePax(const uint8_t* pBuf);
+	static uint8_t analyzeAgf(const uint8_t* pBuf);
+	static uint8_t analyzeUi(const uint8_t* pBuf);
+	static uint8_t analyzeConn(const uint8_t* pBuf);
+	static uint8_t analyzeDisc(const uint8_t* pBuf);
+	static uint8_t analyzeCc(const uint8_t* pBuf);
+	static uint8_t analyzeDm(const uint8_t* pBuf);
+	static uint8_t analyzeFrmr(const uint8_t* pBuf);
+	static uint8_t analyzeI(const uint8_t* pBuf);
+	static uint8_t analyzeRr(const uint8_t* pBuf);
+	static uint8_t analyzeRnr(const uint8_t* pBuf);
+	static uint8_t analyzeDummy(const uint8_t* pBuf);
+	static uint8_t (*sAnalyzePdu[])(const uint8_t* pBuf);
 
-	uint8_t analyzeParamList(const uint8_t *pBuf);
+	static uint8_t analyzeParamList(const uint8_t *pBuf);
 
 
 private:
-	DepMode			m_DepMode;
-	bool			m_bInitiator;
+	static DepMode			m_DepMode;
+	static bool			m_bInitiator;
 };
 
 #endif /* HK_NFCDEP_H */
