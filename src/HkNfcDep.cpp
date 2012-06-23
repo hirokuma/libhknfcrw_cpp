@@ -1,6 +1,7 @@
 #include <cstring>
 #include <cstdlib>
 
+#include "HkNfcRw.h"
 #include "HkNfcDep.h"
 #include "NfcPcd.h"
 #include "misc.h"
@@ -13,25 +14,50 @@ using namespace HkNfcRwMisc;
 
 
 HkNfcDep::DepMode		HkNfcDep::m_DepMode = HkNfcDep::DEP_NONE;
-bool						HkNfcDep::m_bInitiator = false;
+bool					HkNfcDep::m_bInitiator = false;
+uint16_t				HkNfcDep::m_LinkTimeout;
 
 namespace {
+	const uint8_t PL_VERSION	= 0x01;
+	const uint8_t PL_MIUX		= 0x02;
+	const uint8_t PL_WKS		= 0x03;
+	const uint8_t PL_LTO		= 0x04;
+	const uint8_t PL_RW			= 0x05;
+	const uint8_t PL_SN			= 0x06;
+	const uint8_t PL_OPT		= 0x07;
+	
+	// VERSION
+	const uint8_t VER_MAJOR = 0x01;
+	const uint8_t VER_MINOR = 0x00;
+	
+	const uint16_t WKS_LMS	 	= (uint16_t)(1 << 0);
+	const uint16_t WKS_SDP 		= (uint16_t)(1 << 1);
+	const uint16_t WKS_SNEP 	= (uint16_t)(1 << 4);
+
 	/// LLCPのGeneralBytes
 	const uint8_t LlcpGb[] = {
-		0x46, 0x66, 0x6d,		// LLCP Magic Number
-		0x01, 0x01, 0x10,		// TLV0:VERSION[MUST] ... 1.0
-		0x03, 0x02, 0x00, 0x13,	// TLV1:WKS[SHOULD]
-												// bit0 : must
-												// bit1 : SDP
-												// bit4 : SNEP
-								// http://www.nfc-forum.org/specs/nfc_forum_assigned_numbers_register
-		0x04, 0x01, 200			// TLV2:LTO[MAY] ... 10ms x 200 = 2000ms
+		// LLCP Magic Number
+		0x46, 0x66, 0x6d,
+
+		// TLV0:VERSION[MUST]
+		0x01, 0x01, (uint8_t)((VER_MAJOR << 4) | VER_MINOR),
+
+		// TLV1:WKS[SHOULD]
+		0x03, 0x02, 0x00, 0x11,
+						// bit0 : LLC Link Management Service(MUST)
+						// bit4 : SNEP
+						// http://www.nfc-forum.org/specs/nfc_forum_assigned_numbers_register
+
+		// TLV2:LTO[MAY] ... 10ms x 200 = 2000ms
+		0x04, 0x01, 200
 								// LTO > RWT
 	};
 	
 	// PDU解析の戻り値で使用する。
 	// 「このPDUのデータ部はService Data Unitなので、末尾までデータです」という意味。
 	const uint8_t SDU = 0xff;
+
+	const uint16_t DEFAULT_LTO = 100;	// 100msec
 }
 
 
@@ -143,10 +169,19 @@ bool HkNfcDep::startAsInitiator(DepMode mode, bool bLlcp/* =true */)
 		pos += 3;
 
 		//Link activation
+		m_LinkTimeout = DEFAULT_LTO;
+		bool bVERSION = false;
 		while(pos < prm.ResponseLen) {
 			//ここでPDU解析
 			PduType pdu;
+			if(pRecv[pos] == PL_VERSION) {
+				bVERSION = true;
+			}
 			pos += analyzeParamList(&pRecv[pos]);
+		}
+		if(!bVERSION || (m_DepMode == DEP_NONE)) {
+			//だめ
+			return false;
 		}
 	}
 
@@ -328,10 +363,18 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		pos += 3;
 
 		//Link activation
+		bool bVERSION = false;
 		while(pos < IniCmdLen) {
 			//ここでPDU解析
 			PduType pdu;
+			if(pIniCmd[pos] == PL_VERSION) {
+				bVERSION = true;
+			}
 			pos += analyzeParamList(&pIniCmd[pos]);
+		}
+		if(!bVERSION || (m_DepMode == DEP_NONE)) {
+			//だめ
+			return false;
 		}
 
 
@@ -431,6 +474,7 @@ bool HkNfcDep::respAsTarget(const void* pResponse, uint8_t ResponseLen)
  * LLCP
  *******************************************************************/
 
+/* PDU解析の関数テーブル */
 uint8_t (*HkNfcDep::sAnalyzePdu[])(const uint8_t* pBuf) = {
 	&HkNfcDep::analyzeSymm,
 	&HkNfcDep::analyzePax,
@@ -447,18 +491,39 @@ uint8_t (*HkNfcDep::sAnalyzePdu[])(const uint8_t* pBuf) = {
 	&HkNfcDep::analyzeI,
 	&HkNfcDep::analyzeRr,
 	&HkNfcDep::analyzeRnr,
-	&HkNfcDep::analyzeDummy		//0x0f
+	&HkNfcDep::analyzeDummy			//0x0f
 };
 
+
+/**
+ * PDU解析.
+ * 指定されたアドレスから1つ分のPDU解析を行う。
+ *
+ * @param[in]	pBuf		解析対象のデータ
+ * @param[out]	pResPdu		PDU種別
+ * @retval		SDU			これ以降のPDUはない
+ * @retval		上記以外	PDUサイズ
+ */
 uint8_t HkNfcDep::analyzePdu(const uint8_t* pBuf, PduType* pResPdu)
 {
 	*pResPdu = (PduType)(((*pBuf & 0x03) << 2) | (((*pBuf+1) & 0x0c) >> 6));
-	uint8_t next;
-
-	next = (*sAnalyzePdu[*pResPdu])(pBuf);
+	if(*pResPdu > PDU_LAST) {
+		LOGE("BAD PDU\n");
+		*pResPdu = PDU_NONE;
+		return SDU;
+	}
+	
+	uint8_t next = (*sAnalyzePdu[*pResPdu])(pBuf);
 	return next;
 }
 
+
+/**
+ * SYMM
+ *
+ * @param[in]		解析対象
+ * @return
+ */
 uint8_t HkNfcDep::analyzeSymm(const uint8_t* pBuf)
 {
 	LOGD("PDU_SYMM\n");
@@ -542,23 +607,87 @@ uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 	LOGD("Parameter List\n");
 	uint8_t next = (uint8_t)(2 + *(pBuf + 1));
 	switch(*pBuf) {
-	case 0x01:	//VERSION
-		LOGD("VERSION\n");
+	case PL_VERSION:
+		// 5.2.2 LLCP Version Number Agreement Procedure
+		LOGD("VERSION : %02x\n", *(pBuf + 2));
+		{
+			uint8_t major = *(pBuf + 2) >> 4;
+			uint8_t minor = *(pBuf + 2) & 0x0f;
+			if(major == VER_MAJOR) {
+				if(minor == VER_MINOR) {
+					LOGD("agree : same version\n");
+				} else if(minor > VER_MINOR) {
+					LOGD("agree : remote>local ==> local\n");
+				} else {
+					LOGD("agree : remote<local ==> remote\n");
+				}
+			} else if(major < VER_MAJOR) {
+				//自分のバージョンが上→今回は受け入れないことにする
+				LOGD("not agree : remote<local\n");
+				requestReject();
+			} else {
+				//相手のバージョンが上→判定を待つ
+				LOGD("remote>local\n");
+			}
+		}
 		break;
-	case 0x02:	//MIUX
+	case PL_MIUX:
+		//5.2.3 Link MIU Determination Procedure
+		//今回は無視する
 		LOGD("MIUX\n");
 		break;
-	case 0x03:	//WKS
+	case PL_WKS:
 		LOGD("WKS\n");
+		{
+			uint16_t wks = (uint16_t)((*(pBuf + 2) << 8) | *(pBuf + 3));
+			if(wks & WKS_LMS) {
+				//OK
+			} else {
+				//invalid
+				requestReject();
+			}
+			if(wks & WKS_SNEP) {
+				LOGD("WKS : SNEP\n");
+			}
+		}
 		break;
-	case 0x04:	//LTO
-		LOGD("LTO\n");
+	case PL_LTO:
+		m_LinkTimeout = (uint16_t)(*(pBuf + 2) * 10);
+		LOGD("LTO : %d\n", m_LinkTimeout);
 		break;
-	case 0x05:
-		LOGD("RW\n");
+	case PL_RW:
+		// RWサイズが0の場合はI PDUを受け付けないので、切る
+		LOGD("RW : %d\n", *(pBuf + 2));
+		if(*(pBuf + 2) == 0) {
+			requestReject();
+		}
 		break;
-	case 0x06:
-		LOGD("SN\n");
+	case PL_SN:
+		// SNEPするだけなので、無視
+		{
+			uint8_t bak = *(pBuf + next - 1);
+			*(pBuf + next - 1) = '\0';	//手抜き
+			LOGD("SN(%s)\n", pBuf + 2);
+			*(pBuf + next - 1) = bak;
+		}
+		break;
+	case PL_OPT:
+		//SNEPはConnection-orientedのみ
+		switch((*pBuf + 2) & 0x03) {
+		case 0x00:
+			LOGD("OPT(LSC) : unknown\n");
+			break;
+		case 0x01:
+			LOGD("OPT(LSC) : Class 1\n");
+			requestReject();
+			break;
+		case 0x02:
+			LOGD("OPT(LSC) : Class 2\n");
+			break;
+		case 0x03:
+			LOGD("OPT(LSC) : Class 3\n");
+			break;
+		}
 		break;
 	default:
 		LOGE("unknown\n");
@@ -568,3 +697,11 @@ uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 	return next;
 }
 
+
+///打ち切るときに呼び出す予定
+///まだ何も考えていない
+void HkNfcDep::requestReject()
+{
+	LOGD("%s\n", __PRETTY_FUNCTION__);
+	m_DepMode == DEP_NONE;
+}

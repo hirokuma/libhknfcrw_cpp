@@ -3,6 +3,12 @@
 
 #include <stdint.h>
 
+#if 0
+#define h16(u16)		((uint8_t)(u16 >> 8))
+#define l16(u16)		((uint8_t)u16)
+#define ul16(h8,l8)		((uint16_t)((h8<<8) | l8))
+#endif
+
 namespace HkNfcRwMisc {
 
 /// @addtogroup gp_utils	Utilities

@@ -1,8 +1,7 @@
 #ifndef HK_NFCDEP_H
 #define HK_NFCDEP_H
 
-#include "HkNfcRw.h"
-
+#include <stdint.h>
 
 /**
  * @class		HkNfcDep
@@ -11,56 +10,68 @@
  */
 class HkNfcDep {
 private:
-	static const uint32_t _ACT = 0x80000000;
-	static const uint32_t _PSV = 0x00000000;
-	static const uint32_t _AP_MASK= 0x80000000;
+	static const uint32_t _ACT = 0x80000000;		///< Active
+	static const uint32_t _PSV = 0x00000000;		///< Passive
+	static const uint32_t _AP_MASK= 0x80000000;		///< Active/Passive用マスク
 	
-	static const uint32_t _BR106K = 0x40000000;
-	static const uint32_t _BR212K = 0x20000000;
-	static const uint32_t _BR424K = 0x10000000;
-	static const uint32_t _BR_MASK= 0x70000000;
+	static const uint32_t _BR106K = 0x40000000;		///< 106kbps
+	static const uint32_t _BR212K = 0x20000000;		///< 212kbps
+	static const uint32_t _BR424K = 0x10000000;		///< 424kbps
+	static const uint32_t _BR_MASK= 0x70000000;		///< Baudrate用マスク
 	
 
 public:
+	/**
+	 * @enum	HkNfcDep::DepMode
+	 * 
+	 * DEPでの通信モード
+	 */
 	enum DepMode {
-		DEP_NONE = 0x00000000,
+		DEP_NONE = 0x00000000,			///< DEP開始前(取得のみ)
 		
-		ACT_106K = _ACT | _BR106K,
-		PSV_106K = _PSV | _BR106K,
+		ACT_106K = _ACT | _BR106K,		///< 106kbps Active
+		PSV_106K = _PSV | _BR106K,		///< 106kbps Passive
 		
-		ACT_212K = _ACT | _BR212K,
-		PSV_212K = _PSV | _BR212K,
+		ACT_212K = _ACT | _BR212K,		///< 212kbps Active
+		PSV_212K = _PSV | _BR212K,		///< 212kbps Passive
 		
-		ACT_424K = _ACT | _BR424K,
-		PSV_424K = _PSV | _BR424K,
+		ACT_424K = _ACT | _BR424K,		///< 424kbps Active
+		PSV_424K = _PSV | _BR424K,		///< 424kbps Passive
 	};
 
-public:
+private:
+	/**
+	 * @enum	HkNfcDep::PduType
+	 * 
+	 * 	PDU種別
+	 */
 	enum PduType {
-		PDU_SYMM	= 0x00,
-		PDU_PAX		= 0x01,
-		PDU_AGF		= 0x02,
-		PDU_UI		= 0x03,
-		PDU_CONN	= 0x04,
-		PDU_DISC	= 0x05,
-		PDU_CC		= 0x06,
-		PDU_DM		= 0x07,
-		PDU_FRMR	= 0x08,
-		PDU_RESV1	= 0x09,
-		PDU_RESV2	= 0x0a,
-		PDU_RESV3	= 0x0b,
-		PDU_I		= 0x0c,
-		PDU_RR		= 0x0d,
-		PDU_RNR		= 0x0e,
-		PDU_RESV4	= 0x0f
+		PDU_SYMM	= 0x00,			///< SYMM
+		PDU_PAX		= 0x01,			///< PAX
+		PDU_AGF		= 0x02,			///< AGF
+		PDU_UI		= 0x03,			///< UI
+		PDU_CONN	= 0x04,			///< CONNECT
+		PDU_DISC	= 0x05,			///< DISC
+		PDU_CC		= 0x06,			///< CC
+		PDU_DM		= 0x07,			///< DM
+		PDU_FRMR	= 0x08,			///< FRMR
+		PDU_RESV1	= 0x09,			///< -
+		PDU_RESV2	= 0x0a,			///< -
+		PDU_RESV3	= 0x0b,			///< -
+		PDU_I		= 0x0c,			///< I
+		PDU_RR		= 0x0d,			///< RR
+		PDU_RNR		= 0x0e,			///< RNR
+		PDU_RESV4	= 0x0f,			///< -
+		PDU_LAST = PDU_RESV4,		///< -
+
+		PDU_NONE	= 0xff			///< PDU範囲外
 	};
 
 
-public:
 	/// @addtogroup gp_depinit	NFC-DEP(Initiator)
 	/// @ingroup gp_NfcDep
 	/// @{
-
+public:
 	/// InJumpForDEP
 	static bool startAsInitiator(DepMode mode, bool bLlcp = true);
 	/// InDataExchange
@@ -71,11 +82,11 @@ public:
 	static bool stopAsInitiator();
 	/// @}
 
-public:
+
 	/// @addtogroup gp_depinit	NFC-DEP(Target)
 	/// @ingroup gp_NfcDep
 	/// @{
-
+public:
 	/// TgInitTarget, TgSetGeneralBytes
 	static bool startAsTarget(bool bLlcp=true);
 	/// TgGetData
@@ -85,20 +96,19 @@ public:
 	/// @}
 
 
-public:
 	/// @addtogroup gp_depstat	Status
 	/// @ingroup gp_NfcDep
 	/// @{
+public:
 	static DepMode getDepMode() { return m_DepMode; }
 	/// @}
 
 
-public:
 	/// @addtogroup gp_llcp		LLCP Target
 	/// @ingroup gp_NfcDep
 	/// @{
+public:
 
-	/// @}
 
 private:
 	static uint8_t analyzePdu(const uint8_t* pBuf, PduType* pResPdu);
@@ -118,11 +128,15 @@ private:
 	static uint8_t (*sAnalyzePdu[])(const uint8_t* pBuf);
 
 	static uint8_t analyzeParamList(const uint8_t *pBuf);
+	
+	static void requestReject();
+	/// @}
 
 
 private:
-	static DepMode			m_DepMode;
-	static bool			m_bInitiator;
+	static DepMode		m_DepMode;			///< 現在のDepMode
+	static bool			m_bInitiator;		///< true:Initiator / false:Target or not DEP mode
+	static uint16_t		m_LinkTimeout;		///< Link Timeout値[msec](デフォルト:100ms)
 };
 
 #endif /* HK_NFCDEP_H */

@@ -1,3 +1,4 @@
+#include "HkNfcRw.h"
 #include "HkNfcB.h"
 #include "NfcPcd.h"
 

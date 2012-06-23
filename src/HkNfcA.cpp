@@ -1,5 +1,6 @@
 #include <string.h>
 
+#include "HkNfcRw.h"
 #include "HkNfcA.h"
 #include "NfcPcd.h"
 

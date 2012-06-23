@@ -4,12 +4,6 @@
 #include <stdint.h>
 #include <cstring>
 
-// forward class
-class HkNfcA;
-class HkNfcB;
-class HkNfcF;
-class NfcPcd;
-
 
 /**
  * @class	HkNfcRw
@@ -59,7 +53,7 @@ public:
 	/// @{
 
 	/// ターゲットの探索
-	static Type detect(HkNfcA* pNfcA, HkNfcB* pNfcB, HkNfcF* pNfcF);
+	static Type detect(bool bNfcA, bool bNfcB, bool bNfcF);
 
 	/**
 	 * @brief UIDの取得
@@ -93,7 +87,12 @@ public:
 
 
 private:
-	static Type		m_Type;				///< アクティブなNFCタイプ
+	static uint8_t* commandBuf() { return s_CommandBuf; }
+	static uint8_t* responseBuf() { return s_ResponseBuf; }
+
+
+private:
+	static Type			m_Type;				///< アクティブなNFCタイプ
 	static uint8_t		s_CommandBuf[CARD_COMMAND_LEN];		///< PCDへの送信バッファ
 	static uint8_t		s_ResponseBuf[CARD_RESPONSE_LEN];	///< PCDからの受信バッファ
 	static uint8_t		m_NfcId[MAX_NFCID_LEN];		///< 取得したNFCID
@@ -105,10 +104,5 @@ private:
 	friend class HkNfcF;
 	friend class HkNfcDep;
 };
-
-#include "HkNfcA.h"
-#include "HkNfcB.h"
-#include "HkNfcF.h"
-#include "HkNfcDep.h"
 
 #endif // QHKNFCRW_H

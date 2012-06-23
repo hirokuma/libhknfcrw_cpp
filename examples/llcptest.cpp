@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstring>
 #include <unistd.h>
+#include "HkNfcRw.h"
 #include "HkNfcDep.h"
 
 namespace {

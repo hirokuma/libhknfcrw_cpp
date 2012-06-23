@@ -1,8 +1,7 @@
 #ifndef HKNFC_F_H
 #define HKNFC_F_H
 
-#include "HkNfcRw.h"
-
+#include <stdint.h>
 
 /**
  * @class	HkNfcF
@@ -10,7 +9,6 @@
  */
 class HkNfcF {
 public:
-	static const uint8_t NFCID_LEN = HkNfcRw::NFCID2_LEN;	///< NFCID長さ
 	static const uint16_t SVCCODE_RW = 0x0009;		///< サービスコード:R/W
 	static const uint16_t SVCCODE_RO = 0x000b;		///< サービスコード:RO
 

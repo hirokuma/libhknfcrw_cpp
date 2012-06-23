@@ -3,6 +3,9 @@
  * 	@author	uenokuma@gmail.com
  */
 #include "HkNfcRw.h"
+#include "HkNfcA.h"
+#include "HkNfcB.h"
+#include "HkNfcF.h"
 #include "NfcPcd.h"
 #include "misc.h"
 
@@ -99,7 +102,7 @@ void HkNfcRw::close()
 /**
  * 選択しているカードを内部的に解放する。
  *
- * @attention	たぶん、これではだめ.
+ * @attention	RLS_REQ/RLS_RESとは関係ない
  */
 void HkNfcRw::release()
 {
@@ -120,18 +123,13 @@ void HkNfcRw::release()
  *
  * @note		- #open()後に呼び出すこと。
  * 				- アクティブなカードが変更された場合に呼び出すこと。
- *
- * @sa			getInstance()
- * 				getInstanceA()
- * 				getInstanceB()
- * 				getInstanceF()
  */
-HkNfcRw::Type HkNfcRw::detect(HkNfcA* pNfcA, HkNfcB* pNfcB, HkNfcF* pNfcF)
+HkNfcRw::Type HkNfcRw::detect(bool bNfcA, bool bNfcB, bool bNfcF)
 {
 	m_Type = NFC_NONE;
 
-	if(pNfcF) {
-        bool ret = pNfcF->polling();
+	if(bNfcF) {
+        bool ret = HkNfcF::polling();
 		if(ret) {
 			LOGD("PollingF");
 			m_Type = NFC_F;
@@ -139,8 +137,8 @@ HkNfcRw::Type HkNfcRw::detect(HkNfcA* pNfcA, HkNfcB* pNfcB, HkNfcF* pNfcF)
 		}
 	}
 
-	if(pNfcA) {
-        bool ret = pNfcA->polling();
+	if(bNfcA) {
+        bool ret = HkNfcA::polling();
 		if(ret) {
 			LOGD("PollingA");
 			m_Type = NFC_A;
@@ -148,8 +146,8 @@ HkNfcRw::Type HkNfcRw::detect(HkNfcA* pNfcA, HkNfcB* pNfcB, HkNfcF* pNfcF)
 		}
 	}
 
-	if(pNfcB) {
-        bool ret = pNfcB->polling();
+	if(bNfcB) {
+        bool ret = HkNfcB::polling();
 		if(ret) {
 			LOGD("PollingB");
 			m_Type = NFC_B;

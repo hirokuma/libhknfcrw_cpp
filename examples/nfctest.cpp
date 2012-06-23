@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "HkNfcRw.h"
+#include "HkNfcF.h"
 
 int nfc_test()
 {
@@ -18,8 +19,7 @@ int nfc_test()
 	}
 	std::cout << "\nCard Detect & read" << std::endl;
 
-	HkNfcF nfcf(pRw);
-	HkNfcRw::Type type = HkNfcRw::detect(0, 0, &nfcf);
+	HkNfcRw::Type type = HkNfcRw::detect(0, 0, true);
 	if(type != HkNfcRw::NFC_F) {
 		std::cout << "detect fail" << std::endl;
 		HkNfcRw::close();
@@ -27,13 +27,13 @@ int nfc_test()
 	}
 
 	std::cout << "\nread" << std::endl;
-	b = nfcf.polling(0x12fc);
+	b = HkNfcF::polling(0x12fc);
 	if(b) {
 		std::cout << "NFC-F card." << std::endl;
 	} else {
 		std::cout << "not NFC-F card." << std::endl;
 
-		b = nfcf.polling();
+		b = HkNfcF::polling();
 		if(!b) {
 			std::cout << "not FeliCa card." << std::endl;
 			HkNfcRw::close();
@@ -45,7 +45,7 @@ int nfc_test()
 	uint8_t buf[16];
 
 	for(int blk=0; blk<14; blk++) {
-		bool ret = nfcf.read(buf, blk);
+		bool ret = HkNfcF::read(buf, blk);
 		if(ret) {
 			for(int i=0; i<16; i++) {
                 printf("%02x ", buf[i]);
@@ -58,9 +58,9 @@ int nfc_test()
 	}
 	std::cout << "----------------------------" << std::endl;
 
-	nfcf.setServiceCode(HkNfcF::SVCCODE_RO);
+	HkNfcF::setServiceCode(HkNfcF::SVCCODE_RO);
 	for(int blk=0x80; blk<=0x88; blk++) {
-		bool ret = nfcf.read(buf, blk);
+		bool ret = HkNfcF::read(buf, blk);
 		if(ret) {
 			for(int i=0; i<16; i++) {
                 printf("%02x ", buf[i]);

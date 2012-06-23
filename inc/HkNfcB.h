@@ -1,8 +1,7 @@
 #ifndef HKNFCB_H
 #define HKNFCB_H
 
-#include "HkNfcRw.h"
-
+#include <stdint.h>
 
 /**
  * @class	HkNfcB
@@ -10,7 +9,7 @@
  */
 class HkNfcB {
 public:
-	bool polling();
+	static bool polling();
 
 	static bool read(uint8_t* buf, uint8_t blockNo=0x00) { return false; }
 	static bool write(const uint8_t* buf, uint8_t blockNo=0x00) { return false; }

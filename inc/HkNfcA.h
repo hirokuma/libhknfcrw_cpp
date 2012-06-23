@@ -1,8 +1,7 @@
 #ifndef HKNFCA_H
 #define HKNFCA_H
 
-#include "HkNfcRw.h"
-
+#include <stdint.h>
 
 /**
  * @class		HkNfcA
