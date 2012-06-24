@@ -669,7 +669,7 @@ uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 			} else if(major < VER_MAJOR) {
 				//自分のバージョンが上→今回は受け入れないことにする
 				LOGD("not agree : remote<local\n");
-				requestReject();
+				killConnection();
 			} else {
 				//相手のバージョンが上→判定を待つ
 				LOGD("remote>local\n");
@@ -689,7 +689,7 @@ uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 				//OK
 			} else {
 				//invalid
-				requestReject();
+				killConnection();
 			}
 			if(wks & WKS_SNEP) {
 				LOGD("WKS : SNEP\n");
@@ -704,7 +704,7 @@ uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 		// RWサイズが0の場合はI PDUを受け付けないので、切る
 		LOGD("RW : %d\n", *(pBuf + 2));
 		if(*(pBuf + 2) == 0) {
-			requestReject();
+			killConnection();
 		}
 		break;
 	case PL_SN:
@@ -726,7 +726,7 @@ uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 			break;
 		case 0x01:
 			LOGD("OPT(LSC) : Class 1\n");
-			requestReject();
+			killConnection();
 			break;
 		case 0x02:
 			LOGD("OPT(LSC) : Class 2\n");
@@ -774,18 +774,11 @@ void HkNfcDep::createPdu(PduType type)
 
 ///打ち切るときに呼び出す予定
 ///まだ何も考えていない
-void HkNfcDep::requestReject()
+void HkNfcDep::killConnection()
 {
 	LOGD("%s\n", __PRETTY_FUNCTION__);
-	if(m_LlcpStat == LSTAT_NONE) {
-		//即終了
-		m_DepMode = DEP_NONE;
-	} else if(m_LlcpStat == LSTAT_DM) {
-		//何もしない
-	} else {
-		//切断シーケンス
-		m_LlcpStat = LSTAT_DISC;
-	}
+	close();
+	NfcPcd::reset();
 }
 
 

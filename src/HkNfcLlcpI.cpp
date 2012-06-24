@@ -84,34 +84,31 @@ void HkNfcLlcpI::poll()
 		if(m_CommandLen) {
 			uint8_t len;
 			bool b = sendAsInitiator(NfcPcd::commandBuf(), m_CommandLen, NfcPcd::responseBuf(), &len);
-			if(b) {
-				if(m_LlcpStat == LSTAT_DM) {
-					//DM送信後は終了する
-					LOGD("==>LSTAT_NONE\n");
-					m_LlcpStat = LSTAT_NONE;
-					stopAsInitiator();
-					close();
-					NfcPcd::reset();
-				} else {
-					//PDU受信側になる(一瞬)
-					m_bSend = false;
-					m_CommandLen = 0;
+			if(m_LlcpStat == LSTAT_DM) {
+				//DM送信後は強制終了する
+				LOGD("DM send\n");
+				stopAsInitiator();
+				killConnection();
+			} else if(b) {
+				//PDU受信側になる(一瞬)
+				m_bSend = false;
+				m_CommandLen = 0;
 
-					PduType type;
-					uint8_t pdu = analyzePdu(NfcPcd::responseBuf(), &type);
-					//PDU送信側になる
-					m_bSend = true;
-				}
+				PduType type;
+				uint8_t pdu = analyzePdu(NfcPcd::responseBuf(), &type);
+				//PDU送信側になる
+				m_bSend = true;
 			} else {
 				LOGE("error\n");
 				if(m_LlcpStat == LSTAT_DM) {
 					//もうだめ
-					close();
-					NfcPcd::reset();
+					killConnection();
 				} else {
 					stop();
 				}
 			}
+		} else {
+			LOGD("no send data\n");
 		}
 	}
 }

@@ -92,27 +92,25 @@ void HkNfcLlcpT::poll()
 		}
 		if(m_CommandLen) {
 			bool b = respAsTarget(NfcPcd::commandBuf(), m_CommandLen);
-			if(b) {
-				if(m_LlcpStat == LSTAT_DM) {
-					//DM送信後は終了する
-					LOGD("==>LSTAT_NONE\n");
-					close();
-					NfcPcd::reset();
-				} else {
-					//PDU受信側になる
-					m_bSend = false;
-					m_CommandLen = 0;
-				}
+			if(m_LlcpStat == LSTAT_DM) {
+				//DM送信後は強制終了する
+				LOGD("DM send\n");
+				killConnection();
+			} else if(b) {
+				//PDU受信側になる
+				m_bSend = false;
+				m_CommandLen = 0;
 			} else {
 				LOGE("error\n");
 				if(m_LlcpStat == LSTAT_DM) {
 					//もうだめ
-					close();
-					NfcPcd::reset();
+					killConnection();
 				} else {
 					stop();
 				}
 			}
+		} else {
+			LOGD("no send data\n");
 		}
 	}
 }

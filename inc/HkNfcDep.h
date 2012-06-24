@@ -156,7 +156,7 @@ protected:
 
 	static uint8_t analyzeParamList(const uint8_t *pBuf);
 	static void createPdu(PduType type);
-	static void requestReject();
+	static void killConnection();
 	static bool setSendData(const void* pBuf, uint8_t len);
 	/// @}
 
