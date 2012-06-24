@@ -8,6 +8,11 @@
  * @brief	NFC-Bアクセス
  */
 class HkNfcB {
+private:
+	HkNfcB();
+	HkNfcB(const HkNfcB&);
+	~HkNfcB();
+
 public:
 	static bool polling();
 

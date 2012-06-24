@@ -31,8 +31,13 @@ public:
 	static const uint16_t CARD_RESPONSE_LEN = 265;		///< レスポンスバッファサイズ
 
 
-public:
+private:
+	HkNfcRw();
+	HkNfcRw(const HkNfcRw&);
+	~HkNfcRw();
 
+
+public:
 	/// 選択解除
 	static void release();
 #if 0	//ここはNDEF対応してからじゃないと意味がなさそうだな
@@ -86,10 +91,14 @@ public:
 	/// @}
 
 
-private:
+public:
 	static uint8_t* commandBuf() { return s_CommandBuf; }
+	static uint8_t& commandBuf(uint32_t idx) { return s_CommandBuf[idx]; }
 	static uint8_t* responseBuf() { return s_ResponseBuf; }
+	static uint8_t& responseBuf(uint32_t idx) { return s_ResponseBuf[idx]; }
 
+	static uint8_t& nfcIdLen() { return m_NfcIdLen; }
+	static uint8_t* nfcId() { return m_NfcId; }
 
 private:
 	static Type			m_Type;				///< アクティブなNFCタイプ
@@ -99,10 +108,10 @@ private:
 	static uint8_t		m_NfcIdLen;					///< 取得済みのNFCID長。0の場合は未取得。
 
 
-	friend class HkNfcA;
-	friend class HkNfcB;
-	friend class HkNfcF;
-	friend class HkNfcDep;
+//	friend class HkNfcA;
+//	friend class HkNfcB;
+//	friend class HkNfcF;
+//	friend class HkNfcDep;
 };
 
 #endif // QHKNFCRW_H

@@ -88,7 +88,8 @@ private:
 
 private:
 	NfcPcd();
-	virtual ~NfcPcd();
+	NfcPcd(const NfcPcd&);
+	~NfcPcd();
 
 public:
 	/// @addtogroup gp_commoncmd	Common Command

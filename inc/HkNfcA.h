@@ -42,6 +42,11 @@ public:
 	};
 #endif
 
+private:
+	HkNfcA();
+	HkNfcA(const HkNfcA&);
+	~HkNfcA();
+
 public:
 	static bool polling();
 	static bool read(uint8_t* buf, uint8_t blockNo);

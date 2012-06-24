@@ -30,8 +30,11 @@ namespace {
 	const uint8_t VER_MAJOR = 0x01;
 	const uint8_t VER_MINOR = 0x00;
 	
+	// http://www.nfc-forum.org/specs/nfc_forum_assigned_numbers_register
 	const uint16_t WKS_LMS	 	= (uint16_t)(1 << 0);
 	const uint16_t WKS_SDP 		= (uint16_t)(1 << 1);
+	const uint16_t WKS_IP 		= (uint16_t)(1 << 2);	//nfcpyより
+	const uint16_t WKS_OBEX		= (uint16_t)(1 << 3);	//nfcpyより
 	const uint16_t WKS_SNEP 	= (uint16_t)(1 << 4);
 
 	/// LLCPのGeneralBytes
@@ -46,11 +49,11 @@ namespace {
 		0x03, 0x02, 0x00, 0x11,
 						// bit0 : LLC Link Management Service(MUST)
 						// bit4 : SNEP
-						// http://www.nfc-forum.org/specs/nfc_forum_assigned_numbers_register
 
 		// TLV2:LTO[MAY] ... 10ms x 200 = 2000ms
 		0x04, 0x01, 200
 								// LTO > RWT
+								// RWTはRFConfigurationで決定(gbyAtrResTo)
 	};
 	
 	// PDU解析の戻り値で使用する。
@@ -96,7 +99,7 @@ bool HkNfcDep::startAsInitiator(DepMode mode, bool bLlcp/* =true */)
 	}
 	
 	prm.pNfcId3 = 0;		// R/Wで自動生成
-	prm.pResponse = HkNfcRw::s_ResponseBuf;
+	prm.pResponse = HkNfcRw::responseBuf();
 	prm.ResponseLen = 0;
 	if(bLlcp) {
 		prm.pGb = LlcpGb;
@@ -205,7 +208,7 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 	}
 
 	NfcPcd::TargetParam prm;
-	prm.pCommand = HkNfcRw::s_ResponseBuf;
+	prm.pCommand = HkNfcRw::responseBuf();
 	prm.CommandLen = 0;
 
 	if(bLlcp) {
@@ -229,7 +232,7 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		LOGE("tgInitAsTarget\n");
 		return false;
 	}
-	uint8_t br = HkNfcRw::s_ResponseBuf[0] & 0x70;
+	uint8_t br = HkNfcRw::responseBuf(0) & 0x70;
 	switch(br) {
 	case 0x00:
 		LOGD("106kbps\n");
@@ -249,7 +252,7 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		break;
 	}
 
-	uint8_t comm = HkNfcRw::s_ResponseBuf[0] & 0x03;
+	uint8_t comm = HkNfcRw::responseBuf(0) & 0x03;
 	switch(comm) {
 	case 0x00:
 		LOGD("106kbps passive\n");
@@ -269,25 +272,25 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		break;
 	}
 
-	if(HkNfcRw::s_ResponseBuf[1] != prm.CommandLen - 1) {
-		LOGE("bad size, %d, %d\n", HkNfcRw::s_ResponseBuf[1], prm.CommandLen);
+	if(HkNfcRw::responseBuf(1) != prm.CommandLen - 1) {
+		LOGE("bad size, %d, %d\n", HkNfcRw::responseBuf(1), prm.CommandLen);
 		return false;
 	}
 
-	const uint8_t* pIniCmd = &(HkNfcRw::s_ResponseBuf[2]);
+	const uint8_t* pIniCmd = &(HkNfcRw::responseBuf(2));
 	uint8_t IniCmdLen = prm.CommandLen - 2;
 
 	if((pIniCmd[0] >= 3) && (pIniCmd[1] == 0xd4) && (pIniCmd[2] == 0x0a)) {
 		// RLS_REQなら、終わらせる
 		const uint16_t timeout = 2000;
-		HkNfcRw::s_CommandBuf[0] = 3;
-		HkNfcRw::s_CommandBuf[1] = 0xd5;
-		HkNfcRw::s_CommandBuf[2] = 0x0b;			// RLS_REQ
-		HkNfcRw::s_CommandBuf[3] = pIniCmd[3];	// DID
+		HkNfcRw::commandBuf(0) = 3;
+		HkNfcRw::commandBuf(1) = 0xd5;
+		HkNfcRw::commandBuf(2) = 0x0b;			// RLS_REQ
+		HkNfcRw::commandBuf(3) = pIniCmd[3];	// DID
 		uint8_t res_len;
 		NfcPcd::communicateThruEx(timeout,
-						HkNfcRw::s_CommandBuf, 4,
-						HkNfcRw::s_ResponseBuf, &res_len);
+						HkNfcRw::commandBuf(), 4,
+						HkNfcRw::responseBuf(), &res_len);
 		m_DepMode = DEP_NONE;
 	}
 
@@ -381,10 +384,10 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		bool ret = NfcPcd::tgSetGeneralBytes(&prm);
 		if(ret) {
 			//モード確認
-			ret = NfcPcd::getGeneralStatus(HkNfcRw::s_ResponseBuf);
+			ret = NfcPcd::getGeneralStatus(HkNfcRw::responseBuf());
 		}
 		if(ret) {
-			if(HkNfcRw::s_ResponseBuf[NfcPcd::GGS_TXMODE] != NfcPcd::GGS_TXMODE_DEP) {
+			if(HkNfcRw::responseBuf(NfcPcd::GGS_TXMODE) != NfcPcd::GGS_TXMODE_DEP) {
 				//DEPではない
 				LOGE("not DEP mode\n");
 				ret = false;
@@ -427,14 +430,14 @@ bool HkNfcDep::stopAsInitiator()
 	msleep(100);
 
 	const uint16_t timeout = 2000;
-	HkNfcRw::s_CommandBuf[0] = 3;
-	HkNfcRw::s_CommandBuf[1] = 0xd4;
-	HkNfcRw::s_CommandBuf[2] = 0x0a;		// RLS_REQ
-	HkNfcRw::s_CommandBuf[3] = 0x00;		// DID
+	HkNfcRw::commandBuf(0) = 3;
+	HkNfcRw::commandBuf(1) = 0xd4;
+	HkNfcRw::commandBuf(2) = 0x0a;		// RLS_REQ
+	HkNfcRw::commandBuf(3) = 0x00;		// DID
 	uint8_t res_len;
 	bool b = NfcPcd::communicateThruEx(timeout,
-					HkNfcRw::s_CommandBuf, 4,
-					HkNfcRw::s_ResponseBuf, &res_len);
+					HkNfcRw::commandBuf(), 4,
+					HkNfcRw::responseBuf(), &res_len);
 	return b;
 }
 
@@ -664,12 +667,14 @@ uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 		break;
 	case PL_SN:
 		// SNEPするだけなので、無視
+#if 1
 		{
-			uint8_t bak = *(pBuf + next - 1);
-			*(pBuf + next - 1) = '\0';	//手抜き
-			LOGD("SN(%s)\n", pBuf + 2);
-			*(pBuf + next - 1) = bak;
+			uint8_t sn[100];	//そげんなかろう
+			memcpy(sn, pBuf + 2, *(pBuf + 1));
+			sn[*(pBuf + 1) + 1] = '\0';
+			LOGD("SN(%s)\n", sn);
 		}
+#endif
 		break;
 	case PL_OPT:
 		//SNEPはConnection-orientedのみ

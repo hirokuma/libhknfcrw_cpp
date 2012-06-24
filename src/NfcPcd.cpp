@@ -421,7 +421,9 @@ bool NfcPcd::getFirmwareVersion(uint8_t* pResponse)
 		return false;
 	}
 	
-	memcpy(pResponse, s_ResponseBuf + RESHEAD_LEN, RES_LEN);
+	if(pResponse) {
+		memcpy(pResponse, s_ResponseBuf + RESHEAD_LEN, RES_LEN);
+	}
 
 	return true;
 }

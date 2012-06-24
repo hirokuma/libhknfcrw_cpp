@@ -44,37 +44,7 @@ bool HkNfcRw::open()
 	}
 
 	bool ret = NfcPcd::init();
-	if(ret) {
-		ret = NfcPcd::getFirmwareVersion(s_ResponseBuf);
-		if(ret) {
-			LOGD("IC:%02x / Ver:%02x / Rev:%02x / Support:%02x\n",
-				s_ResponseBuf[NfcPcd::GF_IC], s_ResponseBuf[NfcPcd::GF_VER],
-				s_ResponseBuf[NfcPcd::GF_REV], s_ResponseBuf[NfcPcd::GF_SUPPORT]);
-		}
-
-#if 0
-		ret = NfcPcd::getGeneralStatus(s_ResponseBuf);
-		if(ret) {
-			LOGD("Err:%02x / Field:%02x / NbTg:%02x / Tg:%02x / TxMode:%02x\n",
-				s_ResponseBuf[NfcPcd::GGS_ERR],
-				s_ResponseBuf[NfcPcd::GGS_FIELD],
-				s_ResponseBuf[NfcPcd::GGS_NBTG],
-				s_ResponseBuf[NfcPcd::GGS_TG],
-				s_ResponseBuf[NfcPcd::GGS_TXMODE]);
-		}
-		ret = true;		//気にしない
-#endif
-
-#if 0
-		uint8_t res_len;
-		ret = NfcPcd::diagnose(0x00, 0, 0, s_ResponseBuf, &res_len);
-		if(ret) {
-			LOGD("res_len = %d\n", res_len);
-		}
-		ret = true;		//気にしない
-#endif
-
-	} else {
+	if(!ret) {
 		close();
 	}
 	

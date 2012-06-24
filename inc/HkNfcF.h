@@ -12,6 +12,11 @@ public:
 	static const uint16_t SVCCODE_RW = 0x0009;		///< サービスコード:R/W
 	static const uint16_t SVCCODE_RO = 0x000b;		///< サービスコード:RO
 
+private:
+	HkNfcF();
+	HkNfcF(const HkNfcF&);
+	~HkNfcF();
+
 public:
 	static bool polling(uint16_t systemCode = 0xffff);
 

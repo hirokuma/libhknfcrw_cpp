@@ -68,6 +68,12 @@ private:
 	};
 
 
+private:
+	HkNfcDep();
+	HkNfcDep(const HkNfcDep&);
+	~HkNfcDep();
+
+
 	/// @addtogroup gp_depinit	NFC-DEP(Initiator)
 	/// @ingroup gp_NfcDep
 	/// @{

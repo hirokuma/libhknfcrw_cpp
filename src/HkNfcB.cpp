@@ -34,10 +34,10 @@ bool HkNfcB::polling()
 		return false;
 	}
 
-	HkNfcRw::m_NfcIdLen = 12;
-	//LOGD("SEL_RES:%02x", HkNfcRw::m_NfcIdLen);
+	HkNfcRw::nfcIdLen() = 12;
+	//LOGD("SEL_RES:%02x", HkNfcRw::nfcIdLen());
 
-	memcpy(HkNfcRw::m_NfcId, HkNfcRw::s_ResponseBuf + 4, HkNfcRw::m_NfcIdLen);
+	memcpy(HkNfcRw::nfcId(), HkNfcRw::responseBuf() + 4, HkNfcRw::nfcIdLen());
 
 	return true;
 }
