@@ -34,10 +34,7 @@ bool HkNfcB::polling()
 		return false;
 	}
 
-	HkNfcRw::nfcIdLen() = 12;
-	//LOGD("SEL_RES:%02x", HkNfcRw::nfcIdLen());
-
-	memcpy(HkNfcRw::nfcId(), HkNfcRw::responseBuf() + 4, HkNfcRw::nfcIdLen());
+	NfcPcd::setNfcId(NfcPcd::responseBuf() + 4, 12);
 
 	return true;
 }

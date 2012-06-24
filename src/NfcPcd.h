@@ -8,12 +8,6 @@
 
 #include "HkNfcRw.h"
 
-//// forward
-//class HkNfcRw;
-//class HkNfcA;
-//class HkNfcB;
-//class HkNfcF;
-
 
 /**
  * @class		NfcPcd
@@ -28,6 +22,9 @@ public:
 
 	static const uint8_t NFCID2_LEN = 8;		///< NFCID2サイズ
 	static const uint8_t NFCID3_LEN = 10;		///< NFCID3サイズ
+
+	/// 最大UID長(NFC-Bでの値)
+	static const uint8_t MAX_NFCID_LEN = 12;
 
 
 	/// @enum	ActPass
@@ -73,6 +70,11 @@ public:
 	};
 
 private:
+	NfcPcd();
+	NfcPcd(const NfcPcd&);
+	~NfcPcd();
+
+public:
 	/// @addtogroup gp_port	Device Port Control
 	/// @ingroup gp_NfcPcd
 	/// @{
@@ -85,11 +87,6 @@ private:
 	static void portClose();
 	/// @}
 
-
-private:
-	NfcPcd();
-	NfcPcd(const NfcPcd&);
-	~NfcPcd();
 
 public:
 	/// @addtogroup gp_commoncmd	Common Command
@@ -193,6 +190,88 @@ public:
 	/// @}
 
 
+	/// @addtogroup gp_buf		shared buffer
+	/// @ingroup gp_NfcPcd
+	/// @{
+public:
+	/**
+	 * コマンドバッファ取得.
+	 * アドレスを直接取得するので、あまりよろしくないが、いい方法が思いつくまでこのままとする.
+	 * s_SendBufと統合してしまいたいが、後回し.
+	 *
+	 * @return		コマンドバッファ(サイズ:DATA_MAX)
+	 */
+	static uint8_t* commandBuf() { return s_CommandBuf; }
+
+	/**
+	 * コマンドバッファ取得(インデックス指定).
+	 * #commandBuf()[idx]と同じ.
+	 * 左辺値可能.
+	 *
+	 * @param[in]	idx		インデックス
+	 * @return		コマンドバッファ(1byte)
+	 */
+	static uint8_t& commandBuf(uint32_t idx) { return s_CommandBuf[idx]; }
+
+	/**
+	 * レスポンスバッファ取得.
+	 * アドレスを直接取得するので、あまりよろしくないが、いい方法が思いつくまでこのままとする.
+	 * s_ResponseBufと統合してしまいたいが、後回し.
+	 *
+	 * @return		レスポンスバッファ(サイズ:DATA_MAX)
+	 */
+	static uint8_t* responseBuf() { return s_ResponseBuf; }
+
+	/**
+	 * レスポンスバッファ取得(インデックス指定).
+	 * #responseBuf()[idx]と同じ.
+	 * 左辺値可能.
+	 *
+	 * @param[in]	idx		インデックス
+	 * @return		レスオンスバッファ(1byte)
+	 */
+	static uint8_t& responseBuf(uint32_t idx) { return s_ResponseBuf[idx]; }
+	/// @}
+
+
+	/// @addtogroup gp_nfcid	NFCID
+	/// @ingroup gp_NfcPcd
+	/// @{
+public:
+	/**
+	 * 保持しているNFCIDサイズ取得.
+	 * pollingによって更新される.
+	 * clrNfcId()によって0クリアされる.
+	 *
+	 * @return		現在のNFCID長
+	 */
+	static uint8_t nfcIdLen() { return m_NfcIdLen; }
+
+	/**
+	 * 保持しているNFCID取得
+	 * pollingによって更新される.
+	 * clrNfcId()によって0クリアされる.
+	 * 長さは #nfcIdLen() で取得すること.
+	 *
+	 * @return	NFCID
+	 */
+	static const uint8_t* nfcId() { return m_NfcId; }
+
+	/**
+	 * 保持しているNFCIDの設定.
+	 *
+	 * @param[in]	pNfcId		設定するNFCID
+	 * @param[in]	len			設定するNFCID長
+	 */
+	static void setNfcId(const uint8_t* pNfcId, uint8_t len) { std::memcpy(m_NfcId, pNfcId, len); m_NfcIdLen = len; }
+
+	/**
+	 * 保持しているNFCIDのクリア
+	 */
+	static void clrNfcId() { m_NfcIdLen = 0; std::memset(m_NfcId, 0x00, MAX_NFCID_LEN); }
+	/// @}
+
+
 private:
 	/// @addtogroup gp_comm		Communicate to Device
 	/// @ingroup gp_NfcPcd
@@ -211,9 +290,11 @@ private:
 
 
 private:
-	static bool m_bOpened;                             ///< オープンしているかどうか
-
-	friend class HkNfcRw;
+	static bool		m_bOpened;					///< オープンしているかどうか
+	static uint8_t	s_CommandBuf[DATA_MAX];		///< PCDへの送信バッファ
+	static uint8_t	s_ResponseBuf[DATA_MAX];	///< PCDからの受信バッファ
+	static uint8_t	m_NfcId[MAX_NFCID_LEN];		///< 取得したNFCID
+	static uint8_t	m_NfcIdLen;					///< 取得済みのNFCID長。0の場合は未取得。
 };
 
 #endif /* NFCPCD_H */

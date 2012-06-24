@@ -71,10 +71,7 @@ bool HkNfcA::polling()
 	}
 	LOGD("SEL_RES:%02x(%s)", m_SelRes, sel_res);
 
-	HkNfcRw::nfcIdLen() = *(pData + 7);
-	//LOGD("SEL_RES:%02x", HkNfcRw::nfcIdLen());
-
-	memcpy(HkNfcRw::nfcId(), pData + 8, HkNfcRw::nfcIdLen());
+	NfcPcd::setNfcId(pData + 8, *(pData + 7));
 
 	return true;
 }
@@ -82,25 +79,25 @@ bool HkNfcA::polling()
 
 bool HkNfcA::read(uint8_t* buf, uint8_t blockNo)
 {
-	HkNfcRw::commandBuf(0) = 0x01;
-	HkNfcRw::commandBuf(2) = blockNo;
-	HkNfcRw::commandBuf(3) = 0xff;
-	HkNfcRw::commandBuf(4) = 0xff;
-	HkNfcRw::commandBuf(5) = 0xff;
-	HkNfcRw::commandBuf(6) = 0xff;
-	HkNfcRw::commandBuf(7) = 0xff;
-	HkNfcRw::commandBuf(8) = 0xff;
-	memcpy(HkNfcRw::commandBuf() + 9, HkNfcRw::nfcId(), HkNfcRw::nfcIdLen());
+	NfcPcd::commandBuf(0) = 0x01;
+	NfcPcd::commandBuf(2) = blockNo;
+	NfcPcd::commandBuf(3) = 0xff;
+	NfcPcd::commandBuf(4) = 0xff;
+	NfcPcd::commandBuf(5) = 0xff;
+	NfcPcd::commandBuf(6) = 0xff;
+	NfcPcd::commandBuf(7) = 0xff;
+	NfcPcd::commandBuf(8) = 0xff;
+	memcpy(NfcPcd::commandBuf() + 9, NfcPcd::nfcId(), NfcPcd::nfcIdLen());
 
 	uint8_t len;
 	bool ret;
 
 #if 1
 	// Key A Authentication
-	HkNfcRw::commandBuf(1) = KEY_A_AUTH;
+	NfcPcd::commandBuf(1) = KEY_A_AUTH;
 	ret = NfcPcd::inDataExchange(
-					HkNfcRw::commandBuf(), 9 + HkNfcRw::nfcIdLen(),
-					HkNfcRw::responseBuf(), &len);
+					NfcPcd::commandBuf(), 9 + NfcPcd::nfcIdLen(),
+					NfcPcd::responseBuf(), &len);
 	if(!ret) {
 		LOGE("read fail1");
 		return false;
@@ -109,10 +106,10 @@ bool HkNfcA::read(uint8_t* buf, uint8_t blockNo)
 
 #if 0
 	// Key B Authentication
-	HkNfcRw::commandBuf(1) = KEY_B_AUTH;
+	NfcPcd::commandBuf(1) = KEY_B_AUTH;
 	ret = NfcPcd::inDataExchange(
-					HkNfcRw::commandBuf(), 9 + HkNfcRw::nfcIdLen(),
-					HkNfcRw::responseBuf(), &len);
+					NfcPcd::commandBuf(), 9 + NfcPcd::nfcIdLen(),
+					NfcPcd::responseBuf(), &len);
 	if(!ret) {
 		LOGE("read fail2");
 		return false;
@@ -120,12 +117,12 @@ bool HkNfcA::read(uint8_t* buf, uint8_t blockNo)
 #endif
 
 	// Read
-	HkNfcRw::commandBuf(1) = READ;
+	NfcPcd::commandBuf(1) = READ;
 	ret = NfcPcd::inDataExchange(
-					HkNfcRw::commandBuf(), 3,
-					HkNfcRw::responseBuf(), &len);
+					NfcPcd::commandBuf(), 3,
+					NfcPcd::responseBuf(), &len);
 	if(ret) {
-		memcpy(buf, HkNfcRw::responseBuf(), len);
+		memcpy(buf, NfcPcd::responseBuf(), len);
 	} else {
 		LOGE("read fail3");
 	}

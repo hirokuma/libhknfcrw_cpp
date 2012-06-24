@@ -9,8 +9,12 @@
  */
 class HkNfcF {
 public:
+	static const uint8_t NFCID_LEN = 8;
+
 	static const uint16_t SVCCODE_RW = 0x0009;		///< サービスコード:R/W
 	static const uint16_t SVCCODE_RO = 0x000b;		///< サービスコード:RO
+
+	static const uint16_t SC_NDEF = 0x12fc;			///< NDEFシステムコード
 
 private:
 	HkNfcF();
@@ -39,11 +43,11 @@ public:
 
 private:
 	static uint16_t		m_SystemCode;		///< システムコード
-	static uint16_t		m_SvcCode;
+	static uint16_t		m_SvcCode;			///< サービスコード
 
 #ifdef QHKNFCRW_USE_FELICA
 	static uint16_t		m_syscode[16];
-	static uint8_t			m_syscode_num;
+	static uint8_t		m_syscode_num;
 #endif	//QHKNFCRW_USE_FELICA
 };
 

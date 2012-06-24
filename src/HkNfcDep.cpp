@@ -99,7 +99,7 @@ bool HkNfcDep::startAsInitiator(DepMode mode, bool bLlcp/* =true */)
 	}
 	
 	prm.pNfcId3 = 0;		// R/Wで自動生成
-	prm.pResponse = HkNfcRw::responseBuf();
+	prm.pResponse = NfcPcd::responseBuf();
 	prm.ResponseLen = 0;
 	if(bLlcp) {
 		prm.pGb = LlcpGb;
@@ -140,7 +140,7 @@ bool HkNfcDep::startAsInitiator(DepMode mode, bool bLlcp/* =true */)
 		}
 
 		// NFCID3(skip)
-		pos += HkNfcRw::NFCID3_LEN;
+		pos += NfcPcd::NFCID3_LEN;
 
 		//DIDt, BSt, BRt
 		if((pRecv[pos] == 0x00) && (pRecv[pos+1] == 0x00) && (pRecv[pos+2] == 0x00)) {
@@ -208,7 +208,7 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 	}
 
 	NfcPcd::TargetParam prm;
-	prm.pCommand = HkNfcRw::responseBuf();
+	prm.pCommand = NfcPcd::responseBuf();
 	prm.CommandLen = 0;
 
 	if(bLlcp) {
@@ -232,7 +232,7 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		LOGE("tgInitAsTarget\n");
 		return false;
 	}
-	uint8_t br = HkNfcRw::responseBuf(0) & 0x70;
+	uint8_t br = NfcPcd::responseBuf(0) & 0x70;
 	switch(br) {
 	case 0x00:
 		LOGD("106kbps\n");
@@ -252,7 +252,7 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		break;
 	}
 
-	uint8_t comm = HkNfcRw::responseBuf(0) & 0x03;
+	uint8_t comm = NfcPcd::responseBuf(0) & 0x03;
 	switch(comm) {
 	case 0x00:
 		LOGD("106kbps passive\n");
@@ -272,25 +272,25 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		break;
 	}
 
-	if(HkNfcRw::responseBuf(1) != prm.CommandLen - 1) {
-		LOGE("bad size, %d, %d\n", HkNfcRw::responseBuf(1), prm.CommandLen);
+	if(NfcPcd::responseBuf(1) != prm.CommandLen - 1) {
+		LOGE("bad size, %d, %d\n", NfcPcd::responseBuf(1), prm.CommandLen);
 		return false;
 	}
 
-	const uint8_t* pIniCmd = &(HkNfcRw::responseBuf(2));
+	const uint8_t* pIniCmd = &(NfcPcd::responseBuf(2));
 	uint8_t IniCmdLen = prm.CommandLen - 2;
 
 	if((pIniCmd[0] >= 3) && (pIniCmd[1] == 0xd4) && (pIniCmd[2] == 0x0a)) {
 		// RLS_REQなら、終わらせる
 		const uint16_t timeout = 2000;
-		HkNfcRw::commandBuf(0) = 3;
-		HkNfcRw::commandBuf(1) = 0xd5;
-		HkNfcRw::commandBuf(2) = 0x0b;			// RLS_REQ
-		HkNfcRw::commandBuf(3) = pIniCmd[3];	// DID
+		NfcPcd::commandBuf(0) = 3;
+		NfcPcd::commandBuf(1) = 0xd5;
+		NfcPcd::commandBuf(2) = 0x0b;			// RLS_REQ
+		NfcPcd::commandBuf(3) = pIniCmd[3];	// DID
 		uint8_t res_len;
 		NfcPcd::communicateThruEx(timeout,
-						HkNfcRw::commandBuf(), 4,
-						HkNfcRw::responseBuf(), &res_len);
+						NfcPcd::commandBuf(), 4,
+						NfcPcd::responseBuf(), &res_len);
 		m_DepMode = DEP_NONE;
 	}
 
@@ -337,7 +337,7 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		pos += 2;
 		
 		// NFCID3(skip)
-		pos += HkNfcRw::NFCID3_LEN;
+		pos += NfcPcd::NFCID3_LEN;
 
 		//DIDi, BSi, BRi
 		if((pIniCmd[pos] == 0x00) && (pIniCmd[pos+1] == 0x00) && (pIniCmd[pos+2] == 0x00)) {
@@ -384,10 +384,10 @@ bool HkNfcDep::startAsTarget(bool bLlcp/* =true */)
 		bool ret = NfcPcd::tgSetGeneralBytes(&prm);
 		if(ret) {
 			//モード確認
-			ret = NfcPcd::getGeneralStatus(HkNfcRw::responseBuf());
+			ret = NfcPcd::getGeneralStatus(NfcPcd::responseBuf());
 		}
 		if(ret) {
-			if(HkNfcRw::responseBuf(NfcPcd::GGS_TXMODE) != NfcPcd::GGS_TXMODE_DEP) {
+			if(NfcPcd::responseBuf(NfcPcd::GGS_TXMODE) != NfcPcd::GGS_TXMODE_DEP) {
 				//DEPではない
 				LOGE("not DEP mode\n");
 				ret = false;
@@ -430,14 +430,14 @@ bool HkNfcDep::stopAsInitiator()
 	msleep(100);
 
 	const uint16_t timeout = 2000;
-	HkNfcRw::commandBuf(0) = 3;
-	HkNfcRw::commandBuf(1) = 0xd4;
-	HkNfcRw::commandBuf(2) = 0x0a;		// RLS_REQ
-	HkNfcRw::commandBuf(3) = 0x00;		// DID
+	NfcPcd::commandBuf(0) = 3;
+	NfcPcd::commandBuf(1) = 0xd4;
+	NfcPcd::commandBuf(2) = 0x0a;		// RLS_REQ
+	NfcPcd::commandBuf(3) = 0x00;		// DID
 	uint8_t res_len;
 	bool b = NfcPcd::communicateThruEx(timeout,
-					HkNfcRw::commandBuf(), 4,
-					HkNfcRw::responseBuf(), &res_len);
+					NfcPcd::commandBuf(), 4,
+					NfcPcd::responseBuf(), &res_len);
 	return b;
 }
 

@@ -16,10 +16,6 @@
 using namespace HkNfcRwMisc;
 
 HkNfcRw::Type	HkNfcRw::m_Type = HkNfcRw::NFC_NONE;				///< アクティブなNFCタイプ
-uint8_t		HkNfcRw::s_CommandBuf[HkNfcRw::CARD_COMMAND_LEN];		///< PCDへの送信バッファ
-uint8_t		HkNfcRw::s_ResponseBuf[HkNfcRw::CARD_RESPONSE_LEN];	///< PCDからの受信バッファ
-uint8_t		HkNfcRw::m_NfcId[HkNfcRw::MAX_NFCID_LEN];		///< 取得したNFCID
-uint8_t		HkNfcRw::m_NfcIdLen;					///< 取得済みのNFCID長。0の場合は未取得。
 
 
 
@@ -76,8 +72,8 @@ void HkNfcRw::close()
  */
 void HkNfcRw::release()
 {
-	m_NfcIdLen = 0;
-	memset(m_NfcId, 0x00, sizeof(m_NfcId));
+	NfcPcd::clrNfcId();
+	m_Type = NFC_NONE;
 }
 
 
@@ -130,10 +126,17 @@ HkNfcRw::Type HkNfcRw::detect(bool bNfcA, bool bNfcB, bool bNfcF)
 }
 
 
-void HkNfcRw::debug_nfcid()
-{
-	LOGD("%s:", __FUNCTION__);
-	for(int i=0; i<m_NfcIdLen; i++) {
-		LOGD("%02x ", m_NfcId[i]);
-	}
+/**
+ * @brief UIDの取得
+ *
+ * UIDを取得する
+ *
+ * @param[out]	pBuf		UID値
+ * @return					pBufの長さ
+ *
+ * @note		- 戻り値が0の場合、UIDは未取得
+ */
+uint8_t HkNfcRw::getNfcId(uint8_t* pBuf) {
+	std::memcpy(pBuf, NfcPcd::nfcId(), NfcPcd::nfcIdLen());
+	return NfcPcd::nfcIdLen();
 }

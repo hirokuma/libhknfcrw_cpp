@@ -18,6 +18,10 @@ using namespace HkNfcRwMisc;
 
 bool NfcPcd::m_bOpened = false;		///< オープンしているかどうか
 
+uint8_t		NfcPcd::s_CommandBuf[NfcPcd::DATA_MAX];		///< PCDへの送信バッファ
+uint8_t		NfcPcd::s_ResponseBuf[NfcPcd::DATA_MAX];	///< PCDからの受信バッファ
+uint8_t		NfcPcd::m_NfcId[NfcPcd::MAX_NFCID_LEN];		///< 取得したNFCID
+uint8_t		NfcPcd::m_NfcIdLen;					///< 取得済みのNFCID長。0の場合は未取得。
 
 /**
  * const

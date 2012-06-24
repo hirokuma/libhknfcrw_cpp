@@ -6,9 +6,12 @@ SRCDIR = .
 OBJDIR = ./obj
 INCDIR = ../inc
 
+#DEMO = nfc
+#DEMO = dep
+DEMO = llcp
 
 SRCS = \
-	llcptest.cpp \
+	$(DEMO)test.cpp \
 	main.cpp
 
 OBJS = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))
