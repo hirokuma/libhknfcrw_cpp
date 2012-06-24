@@ -42,12 +42,9 @@ inline uint16_t hl16(uint8_t h8, uint8_t l8) {
 }
 
 
-/**
- *  @brief	ミリ秒スリープ
- *
- * @param	msec	待ち時間[msec]
- */
 void msleep(uint16_t msec);
+void startTimer(uint16_t tmval);
+bool isTimeout();
 
 /// @}
 

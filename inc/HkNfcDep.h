@@ -86,6 +86,7 @@ public:
 		LSTAT_DM,			///< Disconnect
 	};
 
+	static const uint8_t SAP_MNG = 0;		///< LLC Link Management
 	static const uint8_t SAP_SDP = 1;		///< SDP
 	static const uint8_t SAP_SNEP = 4;		///< SNEP
 	

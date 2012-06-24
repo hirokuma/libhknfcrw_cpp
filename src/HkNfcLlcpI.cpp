@@ -83,6 +83,7 @@ void HkNfcLlcpI::poll()
 		}
 		if(m_CommandLen) {
 			uint8_t len;
+			startTimer(m_LinkTimeout);
 			bool b = sendAsInitiator(NfcPcd::commandBuf(), m_CommandLen, NfcPcd::responseBuf(), &len);
 			if(m_LlcpStat == LSTAT_DM) {
 				//DM送信後は強制終了する
@@ -90,14 +91,23 @@ void HkNfcLlcpI::poll()
 				stopAsInitiator();
 				killConnection();
 			} else if(b) {
-				//PDU受信側になる(一瞬)
-				m_bSend = false;
-				m_CommandLen = 0;
+				if(isTimeout()) {
+					//相手から通信が返ってこない
+					LOGE("Link timeout\n");
+					m_bSend = true;
+					m_LlcpStat = LSTAT_DISC;
+					m_DSAP = SAP_MNG;
+					m_SSAP = SAP_MNG;
+				} else {
+					//PDU受信側になる(一瞬)
+					m_bSend = false;
+					m_CommandLen = 0;
 
-				PduType type;
-				uint8_t pdu = analyzePdu(NfcPcd::responseBuf(), &type);
-				//PDU送信側になる
-				m_bSend = true;
+					PduType type;
+					uint8_t pdu = analyzePdu(NfcPcd::responseBuf(), &type);
+					//PDU送信側になる
+					m_bSend = true;
+				}
 			} else {
 				LOGE("error\n");
 				if(m_LlcpStat == LSTAT_DM) {

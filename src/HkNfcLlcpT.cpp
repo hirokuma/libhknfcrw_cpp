@@ -39,11 +39,22 @@ void HkNfcLlcpT::poll()
 		//PDU受信側
 		uint8_t len;
 		bool b = recvAsTarget(NfcPcd::responseBuf(), &len);
-		if(b) {
+		if(isTimeout()) {
+			//相手から通信が返ってこない
+			LOGE("Link timeout\n");
+			m_bSend = true;
+			m_LlcpStat = LSTAT_DISC;
+			m_DSAP = SAP_MNG;
+			m_SSAP = SAP_MNG;
+		} else if(b) {
 			PduType type;
 			uint8_t pdu = analyzePdu(NfcPcd::responseBuf(), &type);
 			//PDU送信側になる
 			m_bSend = true;
+		} else {
+			//もうだめだろう
+			LOGE("recv fail\n");
+			killConnection();
 		}
 	} else {
 		//PDU送信側
@@ -100,6 +111,8 @@ void HkNfcLlcpT::poll()
 				//PDU受信側になる
 				m_bSend = false;
 				m_CommandLen = 0;
+				
+				startTimer(m_LinkTimeout);
 			} else {
 				LOGE("error\n");
 				if(m_LlcpStat == LSTAT_DM) {

@@ -536,8 +536,14 @@ uint8_t HkNfcDep::analyzePdu(const uint8_t* pBuf, PduType* pResPdu)
 		*pResPdu = PDU_NONE;
 		return SDU;
 	}
-	
-	uint8_t next = (*sAnalyzePdu[*pResPdu])(pBuf);
+	// 5.6.6 Connection Termination(disconnecting phase)
+	uint8_t next;
+	if(((m_LlcpStat == LSTAT_DISC) || (m_LlcpStat == LSTAT_DM)) && (*pResPdu != PDU_DM)) {
+		killConnection();
+		next = SDU;
+	} else {
+		next = (*sAnalyzePdu[*pResPdu])(pBuf);
+	}
 	return next;
 }
 
@@ -575,6 +581,8 @@ uint8_t HkNfcDep::analyzeUi(const uint8_t* pBuf)
 uint8_t HkNfcDep::analyzeConn(const uint8_t* pBuf)
 {
 	LOGD("PDU_CONN\n");
+	m_DSAP = *pBuf >> 2;
+	uint8_t ssap = *(pBuf + 1) & 0x3f;
 	return analyzeParamList(pBuf + PDU_INFOPOS);
 }
 
@@ -582,8 +590,16 @@ uint8_t HkNfcDep::analyzeDisc(const uint8_t* pBuf)
 {
 	LOGD("PDU_DISC\n");
 	if((m_LlcpStat == LSTAT_NORMAL) || (m_LlcpStat == LSTAT_BUSY)) {
-		m_LlcpStat = LSTAT_DM;
-		NfcPcd::commandBuf(0) = 0x00;		//DISC受信による切断
+		uint8_t dsap = *pBuf >> 2;
+		uint8_t ssap = *(pBuf + 1) & 0x3f;
+		if((dsap == 0) && (ssap == 0)) {
+			//5.4.1 Intentional Link Deactivation
+			killConnection();
+		} else {
+			//5.6.6 Connection Termination
+			m_LlcpStat = LSTAT_DM;
+			NfcPcd::commandBuf(0) = 0x00;		//DISC受信による切断
+		}
 	}
 	return PDU_INFOPOS;
 }
@@ -685,14 +701,11 @@ uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 		LOGD("WKS\n");
 		{
 			uint16_t wks = (uint16_t)((*(pBuf + 2) << 8) | *(pBuf + 3));
-			if(wks & WKS_LMS) {
+			if(wks & (WKS_LMS | WKS_SNEP)) {
 				//OK
 			} else {
 				//invalid
 				killConnection();
-			}
-			if(wks & WKS_SNEP) {
-				LOGD("WKS : SNEP\n");
 			}
 		}
 		break;
