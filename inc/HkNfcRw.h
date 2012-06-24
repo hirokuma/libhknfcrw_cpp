@@ -52,6 +52,12 @@ public:
 	/// ターゲットの探索
 	static Type detect(bool bNfcA, bool bNfcB, bool bNfcF);
 
+	/**
+	 * NFCID取得
+	 *
+	 * @param[out]	pBuf	[戻り値]保持するNFCID
+	 * @return		NFCID長。0のときは未取得。
+	 */
 	static uint8_t getNfcId(uint8_t* pBuf);
 
 
@@ -60,7 +66,7 @@ public:
 	 *
 	 * NFCタイプを取得する
 	 *
-	 * @retval		Nfc::Type 参照
+	 * @return		Nfc::Type 参照
 	 */
 	static Type getType() {
 		return m_Type;

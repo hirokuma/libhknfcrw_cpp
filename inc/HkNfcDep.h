@@ -9,6 +9,10 @@
  * @defgroup	gp_NfcDep	NfcDepクラス
  */
 class HkNfcDep {
+public:
+	friend class HkNfcLlcpI;
+	friend class HkNfcLlcpT;
+
 private:
 	static const uint32_t _ACT = 0x80000000;		///< Active
 	static const uint32_t _PSV = 0x00000000;		///< Passive
@@ -39,7 +43,7 @@ public:
 		PSV_424K = _PSV | _BR424K,		///< 424kbps Passive
 	};
 
-private:
+public:
 	/**
 	 * @enum	HkNfcDep::PduType
 	 * 
@@ -67,6 +71,25 @@ private:
 		PDU_NONE	= 0xff			///< PDU範囲外
 	};
 
+	/**
+	 * @enum	HkNfcDep::LlcpStatus
+	 *
+	 * LLCP状態
+	 */
+	enum LlcpStatus {
+		LSTAT_NONE,			///< 未接続
+		LSTAT_NOT_CONNECT,	///< ATR交換後、CONNECT前
+		LSTAT_CONNECTING,	///< CONNECT要求
+		LSTAT_NORMAL,		///< CONNECT/CC交換後
+		LSTAT_BUSY,			///< Receiver Busy
+		LSTAT_DISC,			///< Disconnect phase
+		LSTAT_DM,			///< Disconnect
+	};
+
+	static const uint8_t SAP_SDP = 1;		///< SDP
+	static const uint8_t SAP_SNEP = 4;		///< SNEP
+	
+	static const uint8_t PDU_INFOPOS = 2;		///< PDUパケットのInformation開始位置
 
 private:
 	HkNfcDep();
@@ -102,21 +125,19 @@ public:
 	/// @}
 
 
-	/// @addtogroup gp_depstat	Status
+	/// @addtogroup gp_depstat	Common
 	/// @ingroup gp_NfcDep
 	/// @{
 public:
+	static void close();
 	static DepMode getDepMode() { return m_DepMode; }
 	/// @}
 
 
-	/// @addtogroup gp_llcp		LLCP Target
+	/// @addtogroup gp_llcp		LLCP PDU
 	/// @ingroup gp_NfcDep
 	/// @{
-public:
-
-
-private:
+protected:
 	static uint8_t analyzePdu(const uint8_t* pBuf, PduType* pResPdu);
 	static uint8_t analyzeSymm(const uint8_t* pBuf);
 	static uint8_t analyzePax(const uint8_t* pBuf);
@@ -134,15 +155,25 @@ private:
 	static uint8_t (*sAnalyzePdu[])(const uint8_t* pBuf);
 
 	static uint8_t analyzeParamList(const uint8_t *pBuf);
-	
+	static void createPdu(PduType type);
 	static void requestReject();
+	static bool setSendData(const void* pBuf, uint8_t len);
 	/// @}
 
 
-private:
+protected:
 	static DepMode		m_DepMode;			///< 現在のDepMode
 	static bool			m_bInitiator;		///< true:Initiator / false:Target or not DEP mode
+
+protected:
 	static uint16_t		m_LinkTimeout;		///< Link Timeout値[msec](デフォルト:100ms)
+	static bool			m_bSend;			///< true:送信側 / false:受信側
+	static LlcpStatus	m_LlcpStat;			///< LLCP状態
+	static uint8_t		m_DSAP;				///< DSAP
+	static uint8_t		m_SSAP;				///< SSAP
+	static uint8_t		m_CommandLen;		///< 次に送信するデータ長
+	static const void*	m_pSendPtr;			///< 送信データポインタ
+	static uint16_t		m_SendLen;			///< 送信データサイズ
 };
 
 #endif /* HK_NFCDEP_H */

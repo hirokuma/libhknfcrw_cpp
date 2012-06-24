@@ -13,6 +13,8 @@ SRCS = \
 	HkNfcB.cpp \
 	HkNfcF.cpp \
 	HkNfcDep.cpp \
+	HkNfcLlcpI.cpp \
+	HkNfcLlcpT.cpp \
 	NfcPcd.cpp \
 	HkNfcRw.cpp
 

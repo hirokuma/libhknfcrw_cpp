@@ -1,8 +1,10 @@
 #include <iostream>
 #include <cstring>
 #include <unistd.h>
+#include <time.h>
 #include "HkNfcRw.h"
-#include "HkNfcDep.h"
+#include "HkNfcLlcpI.h"
+#include "HkNfcLlcpT.h"
 
 namespace {
 	const char keyword1[] = "hiro99ma";
@@ -30,19 +32,29 @@ int nfc_test()
 	if(selnum == 0) {
 		std::cout << "\nInitiator" << std::endl;
 		
-		b = HkNfcDep::startAsInitiator(HkNfcDep::PSV_424K);
+		b = HkNfcLlcpI::start(HkNfcLlcpI::PSV_424K);
 		
 		if(b) {
 			std::cout << "OK" << std::endl;
-			HkNfcDep::stopAsInitiator();
+			
+			time_t t = time(0);
+			while(HkNfcLlcpI::getDepMode() != HkNfcLlcpI::DEP_NONE) {
+				HkNfcLlcpI::poll();
+				if(time(0) - t > 2) {
+					HkNfcLlcpI::stop();
+				}
+			}
 		}
 	} else {
 		std::cout << "\nTarget" << std::endl;
 
-		b = HkNfcDep::startAsTarget();
+		b = HkNfcLlcpT::start();
 		
 		if(b) {
 			std::cout << "OK" << std::endl;
+			while(HkNfcLlcpT::getDepMode() != HkNfcLlcpT::DEP_NONE) {
+				HkNfcLlcpT::poll();
+			}
 		}
 	}
 	std::cout << "exec = " << b << std::endl;
