@@ -7,7 +7,7 @@
 class HkNfcLlcpT : public HkNfcDep {
 public:
 	static bool start();
-	static bool stop();
+	static bool stopRequest();
 
 	static void poll();
 	

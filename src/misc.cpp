@@ -1,11 +1,12 @@
 #include <unistd.h>
 #include <sys/time.h>
+#include "nfclog.h"
 #include "misc.h"
 
 namespace HkNfcRwMisc {
 
 static timeval s_TimeVal;
-static uint16_t s_Timeout;
+static uint16_t s_Timeout = 0;
 
 /**
  *  @brief	ミリ秒スリープ
@@ -26,6 +27,7 @@ void startTimer(uint16_t tmval)
 {
 	gettimeofday(&s_TimeVal, 0);
 	s_Timeout = tmval;
+	//LOGD("  startTimer : (%ld, %ld)\n", s_TimeVal.tv_sec, s_TimeVal.tv_usec);
 }
 
 
@@ -36,12 +38,21 @@ void startTimer(uint16_t tmval)
  */
 bool isTimeout()
 {
-	timeval tm;
+	if(s_Timeout == 0) {
+		return false;
+	}
+
+	timeval now;
 	timeval res;
-	gettimeofday(&tm, 0);
-	timersub(&tm, &s_TimeVal, &res);
+	gettimeofday(&now, 0);
+	timersub(&now, &s_TimeVal, &res);
 	uint32_t tt = res.tv_sec * 1000 + res.tv_usec / 1000;
-	return tt >= s_Timeout;
+	bool b = tt >= s_Timeout;
+	if(b) {
+		LOGD("  isTimeout : (%ld, %ld) - (%ld, %ld)\n", now.tv_sec, now.tv_usec, s_TimeVal.tv_sec, s_TimeVal.tv_usec);
+	}
+	s_Timeout = 0;
+	return b;
 }
 
 }	//namespace HkNfcRwMisc

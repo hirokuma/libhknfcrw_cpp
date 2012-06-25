@@ -7,7 +7,7 @@
 class HkNfcLlcpI : public HkNfcDep {
 public:
 	static bool start(DepMode mode);
-	static bool stop();
+	static bool stopRequest();
 
 	static void poll();
 

@@ -25,9 +25,10 @@ bool HkNfcLlcpI::start(DepMode mode)
 
 
 
-bool HkNfcLlcpI::stop()
+bool HkNfcLlcpI::stopRequest()
 {
 	if(m_LlcpStat != LSTAT_NONE) {
+		LOGD("request DM\n");
 		m_LlcpStat = LSTAT_DM;
 	}
 	
@@ -114,7 +115,7 @@ void HkNfcLlcpI::poll()
 					//‚à‚¤‚¾‚ß
 					killConnection();
 				} else {
-					stop();
+					stopRequest();
 				}
 			}
 		} else {

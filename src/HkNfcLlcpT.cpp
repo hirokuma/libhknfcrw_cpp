@@ -12,20 +12,43 @@
 using namespace HkNfcRwMisc;
 
 
+/**
+ * LLCP(Target)開始.
+ * 呼び出すと、Initiatorから要求が来るまで戻らない.
+ * 成功すると、ATR_RESの返信まで終わっている.
+ *
+ * @retval	true	開始成功
+ * @retval	false	開始失敗
+ */
 bool HkNfcLlcpT::start()
 {
 	bool ret = HkNfcDep::startAsTarget(true);
 	if(ret) {
+		LOGD("%s -- success\n", __PRETTY_FUNCTION__);
+		
 		//PDU受信側
 		m_bSend = false;
 		m_LlcpStat = LSTAT_NOT_CONNECT;
+
+		startTimer(m_LinkTimeout);
 	}
+	
+	return ret;
 }
 
 
-bool HkNfcLlcpT::stop()
+/**
+ * LLCP(Target)停止要求.
+ * 次のタイミングでDM PDUを送信する予約をする.
+ * 実際の送信は #poll() で行うため、
+ *
+ * @param
+ * @return
+ */
+bool HkNfcLlcpT::stopRequest()
 {
 	if(m_LlcpStat != LSTAT_NONE) {
+		LOGD("request DM\n");
 		m_LlcpStat = LSTAT_DM;
 	}
 	
@@ -33,6 +56,11 @@ bool HkNfcLlcpT::stop()
 }
 
 
+/**
+ * LLCP(Target)定期処理.
+ * 開始後、やることがない間は #poll() を呼び出し続けること.
+ * 基本的には、 #getDepMode() が #DEP_NONE になるまで呼び出し続ける.
+ */
 void HkNfcLlcpT::poll()
 {
 	if(!m_bSend) {
@@ -68,6 +96,7 @@ void HkNfcLlcpT::poll()
 			//CONNECT前はSYMMを投げる
 			m_CommandLen = PDU_INFOPOS;
 			createPdu(PDU_SYMM);
+			LOGD("send SYMM\n");
 			break;
 		
 		case LSTAT_CONNECTING:
@@ -90,12 +119,14 @@ void HkNfcLlcpT::poll()
 
 		case LSTAT_DISC:
 			//切断シーケンス
+			LOGD("send DISC\n");
 			m_CommandLen = PDU_INFOPOS;
 			createPdu(PDU_DISC);
 			break;
 		
 		case LSTAT_DM:
 			//切断
+			LOGD("send DM\n");
 			NfcPcd::commandBuf(PDU_INFOPOS) = NfcPcd::commandBuf(0);
 			m_CommandLen = PDU_INFOPOS + 1;
 			createPdu(PDU_DM);
@@ -119,7 +150,7 @@ void HkNfcLlcpT::poll()
 					//もうだめ
 					killConnection();
 				} else {
-					stop();
+					stopRequest();
 				}
 			}
 		} else {

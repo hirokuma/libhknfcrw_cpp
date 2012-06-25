@@ -785,8 +785,10 @@ void HkNfcDep::createPdu(PduType type)
 }
 
 
-///打ち切るときに呼び出す予定
-///まだ何も考えていない
+/**
+ * 接続を強制的に切る.
+ * Resetコマンドまで発行する.
+ */
 void HkNfcDep::killConnection()
 {
 	LOGD("%s\n", __PRETTY_FUNCTION__);
