@@ -8,6 +8,7 @@ class HkNfcLlcpI : public HkNfcDep {
 public:
 	static bool start(DepMode mode);
 	static bool stopRequest();
+	static bool sendRequest(const void* pBuf, uint8_t len);
 
 	static void poll();
 

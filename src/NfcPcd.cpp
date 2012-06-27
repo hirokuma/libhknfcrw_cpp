@@ -12,7 +12,7 @@
 // ログ用
 #define LOG_TAG "NfcPcd"
 #include "nfclog.h"
-#define ENABLE_FRAME_LOG
+//#define ENABLE_FRAME_LOG
 
 using namespace HkNfcRwMisc;
 
@@ -1274,7 +1274,8 @@ bool NfcPcd::recvResp(uint8_t* pResponse, uint16_t* pResponseLen, uint8_t CmdCod
  */
 void NfcPcd::sendAck()
 {
-	LOGD("sendAck\n");
+	LOGD("%s\n", __PRETTY_FUNCTION__);
+
 	DevAccess::write(ACK, sizeof(ACK));
 
 	// wait 1ms

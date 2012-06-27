@@ -82,15 +82,27 @@ public:
 		LSTAT_CONNECTING,	///< CONNECT要求
 		LSTAT_NORMAL,		///< CONNECT/CC交換後
 		LSTAT_BUSY,			///< Receiver Busy
-		LSTAT_DISC,			///< Disconnect phase
-		LSTAT_DM,			///< Disconnect
+		LSTAT_TERM,			///< Connection Termination
+							// 送信する番になったら、DISCを送信し、#LSTAT_DMに遷移.
+							// 受信する場合は、特に何もしない.
+		LSTAT_DM,			///< DM送信待ち
+							// 送信する番になったら、DMを送信し、#LSTAT_NONEに遷移.
+							// 受信する場合は、特に何もしない.
+		LSTAT_WAIT_DM,		///< DM受信待ち
+							// DMを受信したら、#LSTAT_NONEに遷移.
+							// DM以外の受信は破棄
+							// 送信は破棄
 	};
 
 	static const uint8_t SAP_MNG = 0;		///< LLC Link Management
 	static const uint8_t SAP_SDP = 1;		///< SDP
 	static const uint8_t SAP_SNEP = 4;		///< SNEP
 	
+	static const uint8_t LLCP_MIU = 128;	///< MIU
+	
+private:
 	static const uint8_t PDU_INFOPOS = 2;		///< PDUパケットのInformation開始位置
+
 
 private:
 	HkNfcDep();
@@ -139,21 +151,21 @@ public:
 	/// @ingroup gp_NfcDep
 	/// @{
 protected:
-	static uint8_t analyzePdu(const uint8_t* pBuf, PduType* pResPdu);
-	static uint8_t analyzeSymm(const uint8_t* pBuf);
-	static uint8_t analyzePax(const uint8_t* pBuf);
-	static uint8_t analyzeAgf(const uint8_t* pBuf);
-	static uint8_t analyzeUi(const uint8_t* pBuf);
-	static uint8_t analyzeConn(const uint8_t* pBuf);
-	static uint8_t analyzeDisc(const uint8_t* pBuf);
-	static uint8_t analyzeCc(const uint8_t* pBuf);
-	static uint8_t analyzeDm(const uint8_t* pBuf);
-	static uint8_t analyzeFrmr(const uint8_t* pBuf);
-	static uint8_t analyzeI(const uint8_t* pBuf);
-	static uint8_t analyzeRr(const uint8_t* pBuf);
-	static uint8_t analyzeRnr(const uint8_t* pBuf);
-	static uint8_t analyzeDummy(const uint8_t* pBuf);
-	static uint8_t (*sAnalyzePdu[])(const uint8_t* pBuf);
+	static uint8_t analyzePdu(const uint8_t* pBuf, uint8_t len, PduType* pResPdu);
+	static uint8_t analyzeSymm(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
+	static uint8_t analyzePax(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
+	static uint8_t analyzeAgf(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
+	static uint8_t analyzeUi(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
+	static uint8_t analyzeConn(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
+	static uint8_t analyzeDisc(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
+	static uint8_t analyzeCc(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
+	static uint8_t analyzeDm(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
+	static uint8_t analyzeFrmr(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
+	static uint8_t analyzeI(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
+	static uint8_t analyzeRr(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
+	static uint8_t analyzeRnr(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
+	static uint8_t analyzeDummy(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
+	static uint8_t (*sAnalyzePdu[])(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap);
 
 	static uint8_t analyzeParamList(const uint8_t *pBuf);
 	static void createPdu(PduType type);
@@ -173,8 +185,8 @@ protected:
 	static uint8_t		m_DSAP;				///< DSAP
 	static uint8_t		m_SSAP;				///< SSAP
 	static uint8_t		m_CommandLen;		///< 次に送信するデータ長
-	static const void*	m_pSendPtr;			///< 送信データポインタ
-	static uint16_t		m_SendLen;			///< 送信データサイズ
+	static uint8_t		m_SendBuf[LLCP_MIU];	///< 送信データバッファ
+	static uint8_t		m_SendLen;				///< 送信データサイズ
 };
 
 #endif /* HK_NFCDEP_H */

@@ -12,30 +12,80 @@
 using namespace HkNfcRwMisc;
 
 
+/**
+ * LLCP開始
+ *
+ * @param[in]	mode		開始するDepMode
+ * @return		成功/失敗
+ */
 bool HkNfcLlcpI::start(DepMode mode)
 {
+	LOGD("%s\n", __PRETTY_FUNCTION__);
+	
 	bool ret = HkNfcDep::startAsInitiator(mode, true);
 	if(ret) {
 		//PDU送信側
 		m_bSend = true;
 		m_LlcpStat = LSTAT_NOT_CONNECT;
+	} else {
+		killConnection();
 	}
 
+	return ret;
 }
 
 
-
+/**
+ * LLCP(Initiator)終了要求
+ *
+ * @return		true:要求受け入れ
+ */
 bool HkNfcLlcpI::stopRequest()
 {
-	if(m_LlcpStat != LSTAT_NONE) {
-		LOGD("request DM\n");
+	LOGD("%s(%d)\n", __PRETTY_FUNCTION__, m_LlcpStat);
+	
+	switch(m_LlcpStat) {
+	case LSTAT_NOT_CONNECT:
+	case LSTAT_CONNECTING:
 		m_LlcpStat = LSTAT_DM;
+		break;
+	
+	case LSTAT_NONE:
+	case LSTAT_TERM:
+	case LSTAT_DM:
+	case LSTAT_WAIT_DM:
+		break;
+	
+	case LSTAT_NORMAL:
+	case LSTAT_BUSY:
+		m_LlcpStat = LSTAT_TERM;
+		break;
 	}
 	
 	return true;
 }
 
 
+/**
+ * LLCP(Initiator)データ送信要求
+ *
+ * @param[in]	pBuf	送信データ。最大#LLCP_MIU[byte]
+ * @param[in]	len		送信データ長。最大#LLCP_MIU.
+ * @retval		true	送信データ受け入れ
+ */
+bool HkNfcLlcpI::sendRequest(const void* pBuf, uint8_t len)
+{
+	LOGD("%s(%d)\n", __PRETTY_FUNCTION__, m_LlcpStat);
+	
+	return setSendData(pBuf, len);
+}
+
+
+/**
+ * LLCP(Initiator)定期処理.
+ * 開始後、やることがない間は #poll() を呼び出し続けること.
+ * 基本的には、 #getDepMode() が #DEP_NONE になるまで呼び出し続ける.
+ */
 void HkNfcLlcpI::poll()
 {
 	if(m_bSend) {
@@ -53,15 +103,19 @@ void HkNfcLlcpI::poll()
 		
 		case LSTAT_CONNECTING:
 			//CONNECT or CCはデータ設定済み
+			if(m_CommandLen) {
+				LOGD("send CONNECT or CC\n");
+			}
 			break;
 
 		case LSTAT_NORMAL:
 			//
 			if(m_SendLen) {
 				//送信データあり
+				LOGD("send I(%d)\n", m_SendLen);
 				m_CommandLen = PDU_INFOPOS + m_SendLen;
 				createPdu(PDU_I);
-				std::memcpy(NfcPcd::commandBuf() + PDU_INFOPOS, m_pSendPtr, m_SendLen);
+				std::memcpy(NfcPcd::commandBuf() + PDU_INFOPOS, m_SendBuf, m_SendLen);
 				m_SendLen = 0;
 			} else {
 				m_CommandLen = PDU_INFOPOS;
@@ -69,7 +123,7 @@ void HkNfcLlcpI::poll()
 			}
 			break;
 
-		case LSTAT_DISC:
+		case LSTAT_TERM:
 			//切断シーケンス
 			m_CommandLen = PDU_INFOPOS;
 			createPdu(PDU_DISC);
@@ -82,44 +136,40 @@ void HkNfcLlcpI::poll()
 			createPdu(PDU_DM);
 			break;
 		}
-		if(m_CommandLen) {
-			uint8_t len;
-			startTimer(m_LinkTimeout);
-			bool b = sendAsInitiator(NfcPcd::commandBuf(), m_CommandLen, NfcPcd::responseBuf(), &len);
-			if(m_LlcpStat == LSTAT_DM) {
-				//DM送信後は強制終了する
-				LOGD("DM send\n");
-				stopAsInitiator();
-				killConnection();
-			} else if(b) {
-				if(isTimeout()) {
-					//相手から通信が返ってこない
-					LOGE("Link timeout\n");
-					m_bSend = true;
-					m_LlcpStat = LSTAT_DISC;
-					m_DSAP = SAP_MNG;
-					m_SSAP = SAP_MNG;
-				} else {
-					//PDU受信側になる(一瞬)
-					m_bSend = false;
-					m_CommandLen = 0;
-
-					PduType type;
-					uint8_t pdu = analyzePdu(NfcPcd::responseBuf(), &type);
-					//PDU送信側になる
-					m_bSend = true;
-				}
+		if(m_CommandLen == 0) {
+			//SYMMでしのぐ
+			m_CommandLen = PDU_INFOPOS;
+			createPdu(PDU_SYMM);
+		}
+		
+		uint8_t len;
+		startTimer(m_LinkTimeout);
+		bool b = sendAsInitiator(NfcPcd::commandBuf(), m_CommandLen, NfcPcd::responseBuf(), &len);
+		if(m_LlcpStat == LSTAT_DM) {
+			//DM送信後は強制終了する
+			LOGD("DM send\n");
+			stopAsInitiator();
+			killConnection();
+		} else if(b) {
+			if(isTimeout()) {
+				//相手から通信が返ってこない
+				LOGE("Link timeout\n");
+				m_bSend = true;
+				m_LlcpStat = LSTAT_TERM;
+				m_DSAP = SAP_MNG;
+				m_SSAP = SAP_MNG;
 			} else {
-				LOGE("error\n");
-				if(m_LlcpStat == LSTAT_DM) {
-					//もうだめ
-					killConnection();
-				} else {
-					stopRequest();
-				}
+				//受信は済んでいるので、次はPDU送信側になる
+				m_bSend = true;
+				m_CommandLen = 0;
+
+				PduType type;
+				uint8_t pdu = analyzePdu(NfcPcd::responseBuf(), len, &type);
 			}
 		} else {
-			LOGD("no send data\n");
+			LOGE("error\n");
+			//もうだめ
+			killConnection();
 		}
 	}
 }

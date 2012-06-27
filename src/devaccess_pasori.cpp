@@ -128,11 +128,11 @@ namespace {
 				for(int desc = 0; desc < idesc.bNumEndpoints; desc++) {
 					const libusb_endpoint_descriptor& EndPnt = idesc.endpoint[desc];
 					if(EndPnt.bEndpointAddress & LIBUSB_ENDPOINT_IN) {
-						LOGD("[IN]type : %x / addr : %x\n", EndPnt.bDescriptorType, EndPnt.bEndpointAddress);
+						//LOGD("[IN]type : %x / addr : %x\n", EndPnt.bDescriptorType, EndPnt.bEndpointAddress);
 						m_EndPntIn = EndPnt.bEndpointAddress;
 					}
 					else {
-						LOGD("[OUT]type : %x / addr : %x\n", EndPnt.bDescriptorType, EndPnt.bEndpointAddress);
+						//LOGD("[OUT]type : %x / addr : %x\n", EndPnt.bDescriptorType, EndPnt.bEndpointAddress);
 						m_EndPntOut = EndPnt.bEndpointAddress;
 					}
 				}
@@ -166,7 +166,7 @@ namespace {
 			m_pContext = NULL;
 		}
 
-		LOGD("close\n");
+		LOGD("%s\n", __PRETTY_FUNCTION__);
 	}
 
 	uint8_t librcs370::write(const uint8_t *pData, uint8_t size)

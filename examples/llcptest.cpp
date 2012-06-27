@@ -37,12 +37,15 @@ int nfc_test()
 		if(b) {
 			std::cout << "OK" << std::endl;
 			
-//			time_t t = time(0);
+			if(!HkNfcLlcpI::sendRequest("ueno", 5)) {
+				HkNfcLlcpI::stopRequest();
+			}
+			time_t t = time(0);
 			while(HkNfcLlcpI::getDepMode() != HkNfcLlcpI::DEP_NONE) {
 				HkNfcLlcpI::poll();
-//				if(time(0) - t > 2) {
-//					HkNfcLlcpI::stopRequest();
-//				}
+				if(time(0) - t > 2) {
+					HkNfcLlcpI::stopRequest();
+				}
 			}
 		}
 	} else {
@@ -52,12 +55,12 @@ int nfc_test()
 		
 		if(b) {
 			std::cout << "OK" << std::endl;
-			time_t t = time(0);
+//			time_t t = time(0);
 			while(HkNfcLlcpT::getDepMode() != HkNfcLlcpT::DEP_NONE) {
 				HkNfcLlcpT::poll();
-				if(time(0) - t > 2) {
-					HkNfcLlcpT::stopRequest();
-				}
+//				if(time(0) - t > 2) {
+//					HkNfcLlcpT::stopRequest();
+//				}
 			}
 		}
 	}
