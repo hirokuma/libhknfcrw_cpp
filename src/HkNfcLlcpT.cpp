@@ -51,6 +51,7 @@ bool HkNfcLlcpT::stopRequest()
 	switch(m_LlcpStat) {
 	case LSTAT_NOT_CONNECT:
 	case LSTAT_CONNECTING:
+		LOGD("==>LSTAT_DM\n");
 		m_LlcpStat = LSTAT_DM;
 		break;
 	
@@ -62,6 +63,7 @@ bool HkNfcLlcpT::stopRequest()
 	
 	case LSTAT_NORMAL:
 	case LSTAT_BUSY:
+		LOGD("==>LSTAT_TERM\n");
 		m_LlcpStat = LSTAT_TERM;
 		break;
 	}
@@ -126,6 +128,7 @@ void HkNfcLlcpT::poll()
 			m_CommandLen = PDU_INFOPOS;
 			createPdu(PDU_SYMM);
 			//LOGD("send SYMM\n");
+			LOGD("*");
 			break;
 		
 		case LSTAT_CONNECTING:
@@ -139,10 +142,13 @@ void HkNfcLlcpT::poll()
 			//
 			if(m_SendLen) {
 				//送信データあり
-				m_CommandLen = PDU_INFOPOS + m_SendLen;
+				LOGD("send I(VR:%d / VS:%d)\n", m_ValueR, m_ValueS);
+				m_CommandLen = PDU_INFOPOS + 1 + m_SendLen;
 				createPdu(PDU_I);
-				std::memcpy(NfcPcd::commandBuf() + PDU_INFOPOS, m_SendBuf, m_SendLen);
+				NfcPcd::commandBuf(PDU_INFOPOS) = (uint8_t)((m_ValueS << 4) | m_ValueR);
+				std::memcpy(NfcPcd::commandBuf() + PDU_INFOPOS + 1, m_SendBuf, m_SendLen);
 				m_SendLen = 0;
+				m_ValueS++;
 			} else {
 				m_CommandLen = PDU_INFOPOS;
 				createPdu(PDU_RR);
@@ -172,7 +178,7 @@ void HkNfcLlcpT::poll()
 		bool b = respAsTarget(NfcPcd::commandBuf(), m_CommandLen);
 		if(m_LlcpStat == LSTAT_DM) {
 			//DM送信後は強制終了する
-			LOGD("DM send\n");
+			LOGD("DM sent\n");
 			killConnection();
 		} else if(b) {
 			if(m_LlcpStat == LSTAT_TERM) {
@@ -185,6 +191,9 @@ void HkNfcLlcpT::poll()
 					m_LlcpStat = LSTAT_WAIT_DM;
 				}
 			} else {
+				if((m_LlcpStat == LSTAT_CONNECTING) && (m_LastSentPdu == PDU_CC)) {
+					m_LlcpStat = LSTAT_NORMAL;
+				}
 				//PDU受信側になる
 				m_bSend = false;
 				m_CommandLen = 0;

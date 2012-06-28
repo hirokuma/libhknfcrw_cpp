@@ -47,6 +47,7 @@ bool HkNfcLlcpI::stopRequest()
 	switch(m_LlcpStat) {
 	case LSTAT_NOT_CONNECT:
 	case LSTAT_CONNECTING:
+		LOGD("==>LSTAT_DM\n");
 		m_LlcpStat = LSTAT_DM;
 		break;
 	
@@ -58,6 +59,7 @@ bool HkNfcLlcpI::stopRequest()
 	
 	case LSTAT_NORMAL:
 	case LSTAT_BUSY:
+		LOGD("==>LSTAT_TERM\n");
 		m_LlcpStat = LSTAT_TERM;
 		break;
 	}
@@ -98,6 +100,7 @@ void HkNfcLlcpI::poll()
 		case LSTAT_NOT_CONNECT:
 			//CONNECT前はSYMMを投げる
 			m_CommandLen = PDU_INFOPOS;
+			LOGD("*");
 			createPdu(PDU_SYMM);
 			break;
 		
@@ -112,11 +115,13 @@ void HkNfcLlcpI::poll()
 			//
 			if(m_SendLen) {
 				//送信データあり
-				LOGD("send I(%d)\n", m_SendLen);
-				m_CommandLen = PDU_INFOPOS + m_SendLen;
+				LOGD("send I(VR:%d / VS:%d)\n", m_ValueR, m_ValueS);
+				m_CommandLen = PDU_INFOPOS + 1 + m_SendLen;
 				createPdu(PDU_I);
-				std::memcpy(NfcPcd::commandBuf() + PDU_INFOPOS, m_SendBuf, m_SendLen);
+				NfcPcd::commandBuf(PDU_INFOPOS) = (uint8_t)((m_ValueS << 4) | m_ValueR);
+				std::memcpy(NfcPcd::commandBuf() + PDU_INFOPOS + 1, m_SendBuf, m_SendLen);
 				m_SendLen = 0;
+				m_ValueS++;
 			} else {
 				m_CommandLen = PDU_INFOPOS;
 				createPdu(PDU_RR);
@@ -127,6 +132,7 @@ void HkNfcLlcpI::poll()
 			//切断シーケンス
 			m_CommandLen = PDU_INFOPOS;
 			createPdu(PDU_DISC);
+			LOGD("send DISC\n");
 			break;
 		
 		case LSTAT_DM:
@@ -134,12 +140,14 @@ void HkNfcLlcpI::poll()
 			NfcPcd::commandBuf(PDU_INFOPOS) = NfcPcd::commandBuf(0);
 			m_CommandLen = PDU_INFOPOS + 1;
 			createPdu(PDU_DM);
+			LOGD("send DM\n");
 			break;
 		}
 		if(m_CommandLen == 0) {
 			//SYMMでしのぐ
 			m_CommandLen = PDU_INFOPOS;
 			createPdu(PDU_SYMM);
+			LOGD("*");
 		}
 		
 		uint8_t len;
@@ -147,7 +155,7 @@ void HkNfcLlcpI::poll()
 		bool b = sendAsInitiator(NfcPcd::commandBuf(), m_CommandLen, NfcPcd::responseBuf(), &len);
 		if(m_LlcpStat == LSTAT_DM) {
 			//DM送信後は強制終了する
-			LOGD("DM send\n");
+			LOGD("DM sent\n");
 			stopAsInitiator();
 			killConnection();
 		} else if(b) {
@@ -159,6 +167,10 @@ void HkNfcLlcpI::poll()
 				m_DSAP = SAP_MNG;
 				m_SSAP = SAP_MNG;
 			} else {
+				if((m_LlcpStat == LSTAT_CONNECTING) && (m_LastSentPdu == PDU_CC)) {
+					m_LlcpStat = LSTAT_NORMAL;
+				}
+
 				//受信は済んでいるので、次はPDU送信側になる
 				m_bSend = true;
 				m_CommandLen = 0;

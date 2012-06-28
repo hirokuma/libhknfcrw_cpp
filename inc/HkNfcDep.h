@@ -184,9 +184,14 @@ protected:
 	static LlcpStatus	m_LlcpStat;			///< LLCP状態
 	static uint8_t		m_DSAP;				///< DSAP
 	static uint8_t		m_SSAP;				///< SSAP
+	static PduType		m_LastSentPdu;		///< 最後に送信したPDU
 	static uint8_t		m_CommandLen;		///< 次に送信するデータ長
 	static uint8_t		m_SendBuf[LLCP_MIU];	///< 送信データバッファ
 	static uint8_t		m_SendLen;				///< 送信データサイズ
+	static uint8_t		m_ValueS;			///< V(S)
+	static uint8_t		m_ValueR;			///< V(R)
+	static uint8_t		m_ValueSA;			///< V(SA)
+	static uint8_t		m_ValueRA;			///< V(SA)
 };
 
 #endif /* HK_NFCDEP_H */

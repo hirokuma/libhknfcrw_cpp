@@ -21,9 +21,14 @@ bool					HkNfcDep::m_bSend = false;
 HkNfcDep::LlcpStatus	HkNfcDep::m_LlcpStat = HkNfcDep::LSTAT_NONE;
 uint8_t					HkNfcDep::m_DSAP = 0;
 uint8_t					HkNfcDep::m_SSAP = 0;
+HkNfcDep::PduType		HkNfcDep::m_LastSentPdu = HkNfcDep::PDU_NONE;
 uint8_t					HkNfcDep::m_CommandLen = 0;
 uint8_t					HkNfcDep::m_SendBuf[HkNfcDep::LLCP_MIU];
 uint8_t					HkNfcDep::m_SendLen = 0;
+uint8_t	  				HkNfcDep::m_ValueS = 0;
+uint8_t	  				HkNfcDep::m_ValueR = 0;
+uint8_t	  				HkNfcDep::m_ValueSA = 0;
+uint8_t	  				HkNfcDep::m_ValueRA = 0;
 
 namespace {
 	const uint8_t PL_VERSION	= 0x01;
@@ -547,12 +552,13 @@ uint8_t HkNfcDep::analyzePdu(const uint8_t* pBuf, uint8_t len, PduType* pResPdu)
 	// 5.6.6 Connection Termination(disconnecting phase)
 	uint8_t next;
 	if((m_LlcpStat == LSTAT_WAIT_DM) && (*pResPdu != PDU_DM)) {
-		LOGD("Connection Termination\n");
+		LOGD("analyzePdu...Connection Termination(%d)\n", *pResPdu);
 		killConnection();
 		next = SDU;
 	} else {
 		uint8_t dsap = *pBuf >> 2;
 		uint8_t ssap = *(pBuf + 1) & 0x3f;
+		LOGD("[D:%d/S:%d]", dsap, ssap);
 		next = (*sAnalyzePdu[*pResPdu])(pBuf, len, dsap, ssap);
 	}
 	return next;
@@ -567,7 +573,7 @@ uint8_t HkNfcDep::analyzePdu(const uint8_t* pBuf, uint8_t len, PduType* pResPdu)
  */
 uint8_t HkNfcDep::analyzeSymm(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap)
 {
-	//LOGD("PDU_SYMM\n");
+	LOGD("PDU_SYMM\n");
 	return PDU_INFOPOS;
 }
 
@@ -610,6 +616,10 @@ uint8_t HkNfcDep::analyzeConn(const uint8_t* pBuf, uint8_t len, uint8_t dsap, ui
 		LOGD("... accept\n");
 		m_DSAP = dsap;
 		m_SSAP = ssap;
+		m_ValueS = 0;
+		m_ValueR = 0;
+		m_ValueSA = 0;
+		m_ValueRA = 0;
 
 		pBuf += PDU_INFOPOS;
 		len -= PDU_INFOPOS;
@@ -664,6 +674,10 @@ uint8_t HkNfcDep::analyzeCc(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint
 		//OK
 		LOGD("LSTAT_CONNECTING==>LSTAT_NORMAL\n");
 		m_LlcpStat = LSTAT_NORMAL;
+		m_ValueS = 0;
+		m_ValueR = 0;
+		m_ValueSA = 0;
+		m_ValueRA = 0;
 
 		pBuf += PDU_INFOPOS;
 		len -= PDU_INFOPOS;
@@ -679,7 +693,7 @@ uint8_t HkNfcDep::analyzeCc(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint
 		}
 		return SDU;
 	} else {
-		LOGD("reject\n");
+		LOGD("reject %d\n", m_LlcpStat);
 		m_DSAP = SAP_MNG;
 		m_SSAP = SAP_MNG;
 		m_LlcpStat = LSTAT_DM;
@@ -713,18 +727,28 @@ uint8_t HkNfcDep::analyzeFrmr(const uint8_t* pBuf, uint8_t len, uint8_t dsap, ui
 
 uint8_t HkNfcDep::analyzeI(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap)
 {
-	LOGD("PDU_I(D:%d / S:%d\n", dsap, ssap);
+	uint8_t NumS = *(pBuf+PDU_INFOPOS) >> 4;
+	uint8_t NumR = *(pBuf+PDU_INFOPOS) & 0x0f;
+	LOGD("PDU_I(NS:%d / NR:%d))\n", NumS, NumR);
+	if(NumS == m_ValueR) {
+		//OK
+		m_ValueR++;
+	} else {
+		LOGD("bad sequence(NS:%d / VR:%d)\n", NumS, m_ValueR);
+	}
 #ifdef USE_DEBUG
-	for(int i=0; i<len-2; i++) {
-		LOGD("[I]%02x\n", *(pBuf + 2 + i));
+	pBuf += PDU_INFOPOS + 1;
+	len -= PDU_INFOPOS + 1;
+	for(int i=0; i<len; i++) {
+		LOGD("[I]%02x\n", *(pBuf + i));
 	}
 #endif	//USE_DEBUG
-	return 0;
+	return SDU;
 }
 
 uint8_t HkNfcDep::analyzeRr(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap)
 {
-	//LOGD("PDU_RR\n");
+	LOGD("PDU_RR\n");
 	return 0;
 }
 
@@ -743,14 +767,14 @@ uint8_t HkNfcDep::analyzeDummy(const uint8_t* pBuf, uint8_t len, uint8_t dsap, u
 uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 {
 	LOGD("Parameter List\n");
-	uint8_t next = (uint8_t)(2 + *(pBuf + 1));
+	uint8_t next = (uint8_t)(PDU_INFOPOS + *(pBuf + 1));
 	switch(*pBuf) {
 	case PL_VERSION:
 		// 5.2.2 LLCP Version Number Agreement Procedure
-		LOGD("VERSION : %02x\n", *(pBuf + 2));
+		LOGD("VERSION : %02x\n", *(pBuf + PDU_INFOPOS));
 		{
-			uint8_t major = *(pBuf + 2) >> 4;
-			uint8_t minor = *(pBuf + 2) & 0x0f;
+			uint8_t major = *(pBuf + PDU_INFOPOS) >> 4;
+			uint8_t minor = *(pBuf + PDU_INFOPOS) & 0x0f;
 			if(major == VER_MAJOR) {
 				if(minor == VER_MINOR) {
 					LOGD("agree : same version\n");
@@ -776,7 +800,7 @@ uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 		break;
 	case PL_WKS:
 		{
-			uint16_t wks = (uint16_t)((*(pBuf + 2) << 8) | *(pBuf + 3));
+			uint16_t wks = (uint16_t)((*(pBuf + PDU_INFOPOS) << 8) | *(pBuf + 3));
 			if(wks & (WKS_LMS | WKS_SNEP)) {
 				//OK
 				LOGD("WKS : have SNEP\n");
@@ -788,12 +812,12 @@ uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 		}
 		break;
 	case PL_LTO:
-		m_LinkTimeout = (uint16_t)(*(pBuf + 2) * 10);
+		m_LinkTimeout = (uint16_t)(*(pBuf + PDU_INFOPOS) * 10);
 		LOGD("LTO : %d\n", m_LinkTimeout);
 		break;
 	case PL_RW:
 		// RWサイズが0の場合はI PDUを受け付けないので、切る
-		if(*(pBuf + 2) > 0) {
+		if(*(pBuf + PDU_INFOPOS) > 0) {
 			LOGD("RW : %d\n", *(pBuf + 2));
 		} else {
 			LOGD("RW == 0\n");
@@ -805,7 +829,7 @@ uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 #ifdef USE_DEBUG
 		{
 			uint8_t sn[100];	//そげんなかろう
-			memcpy(sn, pBuf + 2, *(pBuf + 1));
+			memcpy(sn, pBuf + PDU_INFOPOS, *(pBuf + 1));
 			sn[*(pBuf + 1) + 1] = '\0';
 			LOGD("SN(%s)\n", sn);
 		}
@@ -813,7 +837,7 @@ uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 		break;
 	case PL_OPT:
 		//SNEPはConnection-orientedのみ
-		switch((*pBuf + 2) & 0x03) {
+		switch((*pBuf + PDU_INFOPOS) & 0x03) {
 		case 0x00:
 			LOGD("OPT(LSC) : unknown\n");
 			break;
@@ -862,6 +886,9 @@ void HkNfcDep::createPdu(PduType type)
 	}
 	NfcPcd::commandBuf(0) = (uint8_t)((dsap << 2) | ((type & 0x0c) >> 2));
 	NfcPcd::commandBuf(1) = (uint8_t)(((type & 0x03) << 6) | ssap);
+	
+	//とりあえず
+	m_LastSentPdu = type;
 }
 
 
