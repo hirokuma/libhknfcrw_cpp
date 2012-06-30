@@ -55,6 +55,11 @@ int nfc_test()
 		
 		if(b) {
 			std::cout << "OK" << std::endl;
+
+			if(!HkNfcLlcpT::sendRequest("ueno", 5)) {
+				HkNfcLlcpT::stopRequest();
+			}
+
 //			time_t t = time(0);
 			while(HkNfcLlcpT::getDepMode() != HkNfcLlcpT::DEP_NONE) {
 				HkNfcLlcpT::poll();

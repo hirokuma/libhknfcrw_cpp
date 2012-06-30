@@ -9,6 +9,7 @@ INCDIR = ../inc
 #DEMO = nfc
 #DEMO = dep
 DEMO = llcp
+#DEMO = reset
 
 SRCS = \
 	$(DEMO)test.cpp \

@@ -49,6 +49,11 @@ namespace {
 	const uint16_t WKS_IP 		= (uint16_t)(1 << 2);	//nfcpyより
 	const uint16_t WKS_OBEX		= (uint16_t)(1 << 3);	//nfcpyより
 	const uint16_t WKS_SNEP 	= (uint16_t)(1 << HkNfcDep::SAP_SNEP);
+	
+	const char SN_SDP[] = "\x06\x0eurn:nfc:sn:sdp";
+	const uint8_t LEN_SN_SDP = 16;
+	const char SN_SNEP[] = "\x06\x0furn:nfc:sn:snep";
+	const uint8_t LEN_SN_SNEP = 17;
 
 	/// LLCPのGeneralBytes
 	const uint8_t LlcpGb[] = {
@@ -64,9 +69,12 @@ namespace {
 						// bit4 : SNEP
 
 		// TLV2:LTO[MAY] ... 10ms x 200 = 2000ms
-		0x04, 0x01, 200
+		0x04, 0x01, 200,
 								// LTO > RWT
 								// RWTはRFConfigurationで決定(gbyAtrResTo)
+
+		// TLV3:OPT
+		0x07, 0x01, 0x02		//Class 2 (Connection-oriented only)
 	};
 	
 	// PDU解析の戻り値で使用する。
@@ -727,14 +735,14 @@ uint8_t HkNfcDep::analyzeFrmr(const uint8_t* pBuf, uint8_t len, uint8_t dsap, ui
 
 uint8_t HkNfcDep::analyzeI(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap)
 {
-	uint8_t NumS = *(pBuf+PDU_INFOPOS) >> 4;
-	uint8_t NumR = *(pBuf+PDU_INFOPOS) & 0x0f;
-	LOGD("PDU_I(NS:%d / NR:%d))\n", NumS, NumR);
-	if(NumS == m_ValueR) {
+	uint8_t NowS = *(pBuf+PDU_INFOPOS) >> 4;
+	uint8_t NowR = *(pBuf+PDU_INFOPOS) & 0x0f;
+	LOGD("PDU_I(NS:%d / NR:%d))\n", NowS, NowR);
+	if(NowS == m_ValueR) {
 		//OK
 		m_ValueR++;
 	} else {
-		LOGD("bad sequence(NS:%d / VR:%d)\n", NumS, m_ValueR);
+		LOGD("bad sequence(NS:%d / VR:%d)\n", NowS, m_ValueR);
 	}
 #ifdef USE_DEBUG
 	pBuf += PDU_INFOPOS + 1;
@@ -761,6 +769,9 @@ uint8_t HkNfcDep::analyzeRnr(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uin
 uint8_t HkNfcDep::analyzeDummy(const uint8_t* pBuf, uint8_t len, uint8_t dsap, uint8_t ssap)
 {
 	LOGD("dummy dummy dummy\n");
+	for(int i=0; i<len; i++) {
+		LOGD("[D]%02x\n", *(pBuf + i));
+	}
 	return 0;
 }
 
@@ -837,7 +848,7 @@ uint8_t HkNfcDep::analyzeParamList(const uint8_t *pBuf)
 		break;
 	case PL_OPT:
 		//SNEPはConnection-orientedのみ
-		switch((*pBuf + PDU_INFOPOS) & 0x03) {
+		switch(*(pBuf + PDU_INFOPOS) & 0x03) {
 		case 0x00:
 			LOGD("OPT(LSC) : unknown\n");
 			break;
@@ -930,11 +941,17 @@ bool HkNfcDep::setSendData(const void* pBuf, uint8_t len)
 
 	//CONNECT前は、まずCONNECTする
 	if(m_LlcpStat == LSTAT_NOT_CONNECT) {
+#if 0
 		m_SSAP = SAP_SNEP;
 		m_DSAP = SAP_SNEP;
+		m_CommandLen = PDU_INFOPOS;
+#else
+		m_SSAP = SAP_SDP;
+		m_DSAP = SAP_SDP;
+		std::memcpy(NfcPcd::commandBuf() + PDU_INFOPOS, SN_SNEP, LEN_SN_SNEP);
+		m_CommandLen = PDU_INFOPOS + LEN_SN_SNEP;
+#endif
 		createPdu(PDU_CONN);
-		std::memcpy(NfcPcd::commandBuf() + PDU_INFOPOS, 0, 0);
-		m_CommandLen = PDU_INFOPOS + 0;
 
 		m_LlcpStat = LSTAT_CONNECTING;
 	}
