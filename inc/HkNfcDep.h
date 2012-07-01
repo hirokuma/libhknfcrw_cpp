@@ -170,7 +170,8 @@ protected:
 	static uint8_t analyzeParamList(const uint8_t *pBuf);
 	static void createPdu(PduType type);
 	static void killConnection();
-	static bool setSendData(const void* pBuf, uint8_t len);
+	static bool addSendData(const void* pBuf, uint8_t len);
+	static bool connect();
 	/// @}
 
 
@@ -192,6 +193,8 @@ protected:
 	static uint8_t		m_ValueR;			///< V(R)
 	static uint8_t		m_ValueSA;			///< V(SA)
 	static uint8_t		m_ValueRA;			///< V(SA)
+
+	static void (*m_pRecvCb)(const void* pBuf, uint8_t len);
 };
 
 #endif /* HK_NFCDEP_H */

@@ -11,22 +11,22 @@
 
 using namespace HkNfcRwMisc;
 
-
 /**
- * LLCPŠJn
+ * LLCPé–‹å§‹
  *
- * @param[in]	mode		ŠJn‚·‚éDepMode
- * @return		¬Œ÷/¸”s
+ * @param[in]	mode		é–‹å§‹ã™ã‚‹DepMode
+ * @return		æˆåŠŸ/å¤±æ•—
  */
-bool HkNfcLlcpI::start(DepMode mode)
+bool HkNfcLlcpI::start(DepMode mode, void (*pRecvCb)(const void* pBuf, uint8_t len))
 {
 	LOGD("%s\n", __PRETTY_FUNCTION__);
 	
 	bool ret = HkNfcDep::startAsInitiator(mode, true);
 	if(ret) {
-		//PDU‘—M‘¤
+		//PDUé€ä¿¡å´
 		m_bSend = true;
 		m_LlcpStat = LSTAT_NOT_CONNECT;
+		m_pRecvCb = pRecvCb;
 	} else {
 		killConnection();
 	}
@@ -36,9 +36,9 @@ bool HkNfcLlcpI::start(DepMode mode)
 
 
 /**
- * LLCP(Initiator)I—¹—v‹
+ * LLCP(Initiator)çµ‚äº†è¦æ±‚
  *
- * @return		true:—v‹ó‚¯“ü‚ê
+ * @return		true:è¦æ±‚å—ã‘å…¥ã‚Œ
  */
 bool HkNfcLlcpI::stopRequest()
 {
@@ -68,44 +68,71 @@ bool HkNfcLlcpI::stopRequest()
 }
 
 
+
 /**
- * LLCP(Initiator)ƒf[ƒ^‘—M—v‹
+ * LLCP(Initiator)é€ä¿¡ãƒ‡ãƒ¼ã‚¿è¿½åŠ 
  *
- * @param[in]	pBuf	‘—Mƒf[ƒ^BÅ‘å#LLCP_MIU[byte]
- * @param[in]	len		‘—Mƒf[ƒ^’·BÅ‘å#LLCP_MIU.
- * @retval		true	‘—Mƒf[ƒ^ó‚¯“ü‚ê
+ * @param[in]	pBuf	é€ä¿¡ãƒ‡ãƒ¼ã‚¿ã€‚æœ€å¤§#LLCP_MIU[byte]
+ * @param[in]	len		é€ä¿¡ãƒ‡ãƒ¼ã‚¿é•·ã€‚æœ€å¤§#LLCP_MIU.
+ * @retval		true	é€ä¿¡ãƒ‡ãƒ¼ã‚¿å—ã‘å…¥ã‚Œ
  */
-bool HkNfcLlcpI::sendRequest(const void* pBuf, uint8_t len)
+bool HkNfcLlcpI::addSendData(const void* pBuf, uint8_t len)
 {
 	LOGD("%s(%d)\n", __PRETTY_FUNCTION__, m_LlcpStat);
 	
-	return setSendData(pBuf, len);
+	bool b;
+	b = HkNfcDep::addSendData(pBuf, len);
+	
+	return b;
 }
 
 
 /**
- * LLCP(Initiator)’èŠúˆ—.
- * ŠJnŒãA‚â‚é‚±‚Æ‚ª‚È‚¢ŠÔ‚Í #poll() ‚ğŒÄ‚Ño‚µ‘±‚¯‚é‚±‚Æ.
- * Šî–{“I‚É‚ÍA #getDepMode() ‚ª #DEP_NONE ‚É‚È‚é‚Ü‚ÅŒÄ‚Ño‚µ‘±‚¯‚é.
+ * LLCP(Initiator)ãƒ‡ãƒ¼ã‚¿é€ä¿¡è¦æ±‚
+ *
+ * @retval		true	é€ä¿¡å—ã‘å…¥ã‚Œ
  */
-void HkNfcLlcpI::poll()
+bool HkNfcLlcpI::sendRequest()
 {
+	LOGD("%s(%d)\n", __PRETTY_FUNCTION__, m_LlcpStat);
+	
+	bool b;
+	b = connect();
+	
+	return b;
+}
+
+
+/**
+ * LLCP(Initiator)å®šæœŸå‡¦ç†.
+ * é–‹å§‹å¾Œã€ã‚„ã‚‹ã“ã¨ãŒãªã„é–“ã¯ #poll() ã‚’å‘¼ã³å‡ºã—ç¶šã‘ã‚‹ã“ã¨.
+ * åŸºæœ¬çš„ã«ã¯ã€ #getDepMode() ãŒ #DEP_NONE ã«ãªã‚‹ã¾ã§å‘¼ã³å‡ºã—ç¶šã‘ã‚‹.
+ * 
+ * @retval	true	#DEP_NONEã«ãªã£ã¦ã„ãªã„
+ * @retval	false	#DEP_NONEã«ãªã£ãŸ
+ */
+bool HkNfcLlcpI::poll()
+{
+	if(getDepMode() == DEP_NONE) {
+		return false;
+	}
+
 	if(m_bSend) {
-		//PDU‘—M
+		//PDUé€ä¿¡æ™‚
 		switch(m_LlcpStat) {
 		case LSTAT_NONE:
 			//
 			break;
 		
 		case LSTAT_NOT_CONNECT:
-			//CONNECT‘O‚ÍSYMM‚ğ“Š‚°‚é
+			//CONNECTå‰ã¯SYMMã‚’æŠ•ã’ã‚‹
 			m_CommandLen = PDU_INFOPOS;
 			LOGD("*");
 			createPdu(PDU_SYMM);
 			break;
 		
 		case LSTAT_CONNECTING:
-			//CONNECT or CC‚Íƒf[ƒ^İ’èÏ‚İ
+			//CONNECT or CCã¯ãƒ‡ãƒ¼ã‚¿è¨­å®šæ¸ˆã¿
 			if(m_CommandLen) {
 				LOGD("send CONNECT or CC\n");
 			}
@@ -114,7 +141,7 @@ void HkNfcLlcpI::poll()
 		case LSTAT_NORMAL:
 			//
 			if(m_SendLen) {
-				//‘—Mƒf[ƒ^‚ ‚è
+				//é€ä¿¡ãƒ‡ãƒ¼ã‚¿ã‚ã‚Š
 				LOGD("send I(VR:%d / VS:%d)\n", m_ValueR, m_ValueS);
 				m_CommandLen = PDU_INFOPOS + 1 + m_SendLen;
 				createPdu(PDU_I);
@@ -123,20 +150,21 @@ void HkNfcLlcpI::poll()
 				m_SendLen = 0;
 				m_ValueS++;
 			} else {
-				m_CommandLen = PDU_INFOPOS;
+				m_CommandLen = PDU_INFOPOS + 1;
 				createPdu(PDU_RR);
+				NfcPcd::commandBuf(PDU_INFOPOS) = m_ValueR;		//N(R)
 			}
 			break;
 
 		case LSTAT_TERM:
-			//Ø’fƒV[ƒPƒ“ƒX
+			//åˆ‡æ–­ã‚·ãƒ¼ã‚±ãƒ³ã‚¹
 			m_CommandLen = PDU_INFOPOS;
 			createPdu(PDU_DISC);
 			LOGD("send DISC\n");
 			break;
 		
 		case LSTAT_DM:
-			//Ø’f
+			//åˆ‡æ–­
 			NfcPcd::commandBuf(PDU_INFOPOS) = NfcPcd::commandBuf(0);
 			m_CommandLen = PDU_INFOPOS + 1;
 			createPdu(PDU_DM);
@@ -144,7 +172,7 @@ void HkNfcLlcpI::poll()
 			break;
 		}
 		if(m_CommandLen == 0) {
-			//SYMM‚Å‚µ‚Ì‚®
+			//SYMMã§ã—ã®ã
 			m_CommandLen = PDU_INFOPOS;
 			createPdu(PDU_SYMM);
 			LOGD("*");
@@ -154,13 +182,13 @@ void HkNfcLlcpI::poll()
 		startTimer(m_LinkTimeout);
 		bool b = sendAsInitiator(NfcPcd::commandBuf(), m_CommandLen, NfcPcd::responseBuf(), &len);
 		if(m_LlcpStat == LSTAT_DM) {
-			//DM‘—MŒã‚Í‹­§I—¹‚·‚é
+			//DMé€ä¿¡å¾Œã¯å¼·åˆ¶çµ‚äº†ã™ã‚‹
 			LOGD("DM sent\n");
 			stopAsInitiator();
 			killConnection();
 		} else if(b) {
 			if(isTimeout()) {
-				//‘Šè‚©‚ç’ÊM‚ª•Ô‚Á‚Ä‚±‚È‚¢
+				//ç›¸æ‰‹ã‹ã‚‰é€šä¿¡ãŒè¿”ã£ã¦ã“ãªã„
 				LOGE("Link timeout\n");
 				m_bSend = true;
 				m_LlcpStat = LSTAT_TERM;
@@ -171,7 +199,7 @@ void HkNfcLlcpI::poll()
 					m_LlcpStat = LSTAT_NORMAL;
 				}
 
-				//óM‚ÍÏ‚ñ‚Å‚¢‚é‚Ì‚ÅAŸ‚ÍPDU‘—M‘¤‚É‚È‚é
+				//å—ä¿¡ã¯æ¸ˆã‚“ã§ã„ã‚‹ã®ã§ã€æ¬¡ã¯PDUé€ä¿¡å´ã«ãªã‚‹
 				m_bSend = true;
 				m_CommandLen = 0;
 
@@ -180,8 +208,10 @@ void HkNfcLlcpI::poll()
 			}
 		} else {
 			LOGE("error\n");
-			//‚à‚¤‚¾‚ß
+			//ã‚‚ã†ã ã‚
 			killConnection();
 		}
 	}
+	
+	return true;
 }

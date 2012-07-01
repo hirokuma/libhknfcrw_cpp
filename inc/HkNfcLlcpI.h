@@ -6,11 +6,12 @@
 
 class HkNfcLlcpI : public HkNfcDep {
 public:
-	static bool start(DepMode mode);
+	static bool start(DepMode mode, void (*pRecvCb)(const void* pBuf, uint8_t len));
 	static bool stopRequest();
-	static bool sendRequest(const void* pBuf, uint8_t len);
+	static bool addSendData(const void* pBuf, uint8_t len);
+	static bool sendRequest();
 
-	static void poll();
+	static bool poll();
 
 private:
 	HkNfcLlcpI();

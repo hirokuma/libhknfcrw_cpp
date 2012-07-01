@@ -8,7 +8,8 @@ INCDIR = ../inc
 
 #DEMO = nfc
 #DEMO = dep
-DEMO = llcp
+#DEMO = llcp
+DEMO = snep
 #DEMO = reset
 
 SRCS = \

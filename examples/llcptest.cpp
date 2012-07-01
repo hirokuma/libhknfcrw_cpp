@@ -11,6 +11,12 @@ namespace {
 	const char keyword2[] = "HIRO99MA";
 }
 
+void recv(const void* pBuf, uint8_t len)
+{
+	const char* pStr = reinterpret_cast<const void*>(pBuf);
+	std::cout << pStr << std::endl;
+}
+
 int nfc_test()
 {
 	bool b;
@@ -32,17 +38,21 @@ int nfc_test()
 	if(selnum == 0) {
 		std::cout << "\nInitiator" << std::endl;
 		
-		b = HkNfcLlcpI::start(HkNfcLlcpI::PSV_424K);
+		b = HkNfcLlcpI::start(HkNfcLlcpI::PSV_424K, recv);
 		
 		if(b) {
 			std::cout << "OK" << std::endl;
 			
-			if(!HkNfcLlcpI::sendRequest("ueno", 5)) {
+			b = HkNfcLlcpI::addSendData("ueno", 4);
+			if(!b) {
+				HkNfcLlcpI::stopRequest();
+			}
+			b = HkNfcLlcpI::sendRequest();
+			if(!b) {
 				HkNfcLlcpI::stopRequest();
 			}
 			time_t t = time(0);
-			while(HkNfcLlcpI::getDepMode() != HkNfcLlcpI::DEP_NONE) {
-				HkNfcLlcpI::poll();
+			while(HkNfcLlcpI::poll()) {
 				if(time(0) - t > 2) {
 					HkNfcLlcpI::stopRequest();
 				}
@@ -51,18 +61,22 @@ int nfc_test()
 	} else {
 		std::cout << "\nTarget" << std::endl;
 
-		b = HkNfcLlcpT::start();
+		b = HkNfcLlcpT::start(recv);
 		
 		if(b) {
 			std::cout << "OK" << std::endl;
 
-			if(!HkNfcLlcpT::sendRequest("ueno", 5)) {
+			b = HkNfcLlcpT::addSendData("ueno", 4);
+			if(!b) {
+				HkNfcLlcpT::stopRequest();
+			}
+			b = HkNfcLlcpT::sendRequest();
+			if(!b) {
 				HkNfcLlcpT::stopRequest();
 			}
 
 //			time_t t = time(0);
-			while(HkNfcLlcpT::getDepMode() != HkNfcLlcpT::DEP_NONE) {
-				HkNfcLlcpT::poll();
+			while(HkNfcLlcpT::poll()) {
 //				if(time(0) - t > 2) {
 //					HkNfcLlcpT::stopRequest();
 //				}

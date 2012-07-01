@@ -15,6 +15,8 @@ SRCS = \
 	HkNfcDep.cpp \
 	HkNfcLlcpI.cpp \
 	HkNfcLlcpT.cpp \
+	HkNfcSnep.cpp \
+	HkNfcNdef.cpp \
 	NfcPcd.cpp \
 	HkNfcRw.cpp
 
@@ -37,7 +39,7 @@ $(OBJDIR)/%.o : %.cpp
 	$(CXX) -o $@ -c $(CFLAGS) $<
 
 clean:
-	$(RM) $(OBJDIR)/*.o $(TARGET) .Depend
+	$(RM) $(OBJDIR)/*.o $(TARGET) .DependP
 
 .DependP:
 	-$(CXX) $(CFLAGS) -MM $(SRCP) > .tmp
