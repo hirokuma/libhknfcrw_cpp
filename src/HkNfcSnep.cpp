@@ -69,12 +69,17 @@ bool HkNfcSnep::pollI()
 
 	switch(m_Status) {
 	case ST_START_PUT:
-		b = HkNfcLlcpI::start(HkNfcLlcpI::ACT_424K, HkNfcSnep::recvCb);
+		b = HkNfcLlcpI::start(HkNfcLlcpI::ACT_424K, HkNfcSnep::recvCbI);
 		if(b) {
-			b = HkNfcLlcpI::addSendData(m_pMessage->Data, m_pMessage->Length);
-		}
-		if(b) {
-			b = HkNfcLlcpI::sendRequest();
+			uint8_t snep_head[6];
+			snep_head[0] = 0x10;
+			snep_head[1] = 0x02;	//PUT
+			snep_head[2] = (uint8_t)((m_pMessage->Length) >> 24);
+			snep_head[3] = (uint8_t)((m_pMessage->Length) >> 16);
+			snep_head[4] = (uint8_t)((m_pMessage->Length) >> 8);
+			snep_head[5] = (uint8_t)(m_pMessage->Length);
+			b = HkNfcLlcpI::addSendData(snep_head, sizeof(snep_head));
+			b = b && HkNfcLlcpI::addSendData(m_pMessage->Data, m_pMessage->Length);
 		}
 		if(b) {
 			m_Status = ST_PUT;
@@ -85,6 +90,15 @@ bool HkNfcSnep::pollI()
 		break;
 
 	case ST_PUT:
+		b = HkNfcLlcpI::sendRequest();
+		if(b) {
+			m_Status = ST_PUT_RESPONSE;
+		} else {
+			m_Status = ST_ABORT;
+			HkNfcLlcpI::stopRequest();
+		}
+		break;
+
 	case ST_PUT_RESPONSE:
 	case ST_SUCCESS:
 	case ST_ABORT:
@@ -96,13 +110,31 @@ bool HkNfcSnep::pollI()
 }
 
 
+void HkNfcSnep::recvCbI(const void* pBuf, uint8_t len)
+{
+	const uint8_t* pData = reinterpret_cast<const uint8_t*>(pBuf);
+
+	switch(m_Status) {
+	case ST_PUT_RESPONSE:
+		//PUT後の応答
+		if(pData[1] == SNEP_SUCCESS) {
+			m_Status = ST_SUCCESS;
+		} else {
+			m_Status = ST_ABORT;
+		}
+		HkNfcLlcpI::stopRequest();
+		break;
+	}
+}
+
+
 bool HkNfcSnep::pollT()
 {
 	bool b = false;
 
 	switch(m_Status) {
 	case ST_START_PUT:
-		b = HkNfcLlcpT::start(HkNfcSnep::recvCb);
+		b = HkNfcLlcpT::start(HkNfcSnep::recvCbT);
 		if(b) {
 			uint8_t snep_head[6];
 			snep_head[0] = 0x10;
@@ -126,6 +158,9 @@ bool HkNfcSnep::pollT()
 		b = HkNfcLlcpT::sendRequest();
 		if(b) {
 			m_Status = ST_PUT_RESPONSE;
+		} else {
+			m_Status = ST_ABORT;
+			HkNfcLlcpT::stopRequest();
 		}
 		break;
 	case ST_PUT_RESPONSE:
@@ -139,7 +174,7 @@ bool HkNfcSnep::pollT()
 }
 
 
-void HkNfcSnep::recvCb(const void* pBuf, uint8_t len)
+void HkNfcSnep::recvCbT(const void* pBuf, uint8_t len)
 {
 	const uint8_t* pData = reinterpret_cast<const uint8_t*>(pBuf);
 
@@ -151,7 +186,7 @@ void HkNfcSnep::recvCb(const void* pBuf, uint8_t len)
 		} else {
 			m_Status = ST_ABORT;
 		}
-		HkNfcLlcpI::stopRequest();
+		HkNfcLlcpT::stopRequest();
 		break;
 	}
 }

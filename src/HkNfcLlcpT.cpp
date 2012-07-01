@@ -217,6 +217,12 @@ bool HkNfcLlcpT::poll()
 				} else {
 					LOGD("wait DM\n");
 					m_LlcpStat = LSTAT_WAIT_DM;
+
+					//PDU受信側になる
+					m_bSend = false;
+					m_CommandLen = 0;
+					
+					startTimer(m_LinkTimeout);
 				}
 			} else {
 				if((m_LlcpStat == LSTAT_CONNECTING) && (m_LastSentPdu == PDU_CC)) {

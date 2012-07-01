@@ -24,8 +24,11 @@ public:
 
 private:
 	static bool pollI();
+	static void recvCbI(const void* pBuf, uint8_t len);
+
+private:
 	static bool pollT();
-	static void recvCb(const void* pBuf, uint8_t len);
+	static void recvCbT(const void* pBuf, uint8_t len);
 
 private:
 	HkNfcSnep();

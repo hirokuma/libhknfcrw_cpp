@@ -26,7 +26,7 @@ int nfc_test()
 		return -1;
 	}
 
-	b = HkNfcSnep::putStart(HkNfcSnep::MD_TARGET, &msg);
+	b = HkNfcSnep::putStart(HkNfcSnep::MD_INITIATOR, &msg);
 	if(!b) {
 		std::printf("snep start fail\n");
 		HkNfcRw::close();
