@@ -69,7 +69,7 @@ bool HkNfcSnep::pollI()
 
 	switch(m_Status) {
 	case ST_START_PUT:
-		b = HkNfcLlcpI::start(HkNfcLlcpI::ACT_424K, HkNfcSnep::recvCbI);
+		b = HkNfcLlcpI::start(HkNfcLlcpI::PSV_424K, HkNfcSnep::recvCbI);
 		if(b) {
 			uint8_t snep_head[6];
 			snep_head[0] = 0x10;

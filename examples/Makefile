@@ -6,10 +6,10 @@ SRCDIR = .
 OBJDIR = ./obj
 INCDIR = ../inc
 
-#DEMO = nfc
+DEMO = nfc
 #DEMO = dep
 #DEMO = llcp
-DEMO = snep
+#DEMO = snep
 #DEMO = reset
 
 SRCS = \

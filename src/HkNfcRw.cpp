@@ -97,7 +97,7 @@ HkNfcRw::Type HkNfcRw::detect(bool bNfcA, bool bNfcB, bool bNfcF)
 	if(bNfcF) {
         bool ret = HkNfcF::polling();
 		if(ret) {
-			LOGD("PollingF");
+			LOGD("PollingF\n");
 			m_Type = NFC_F;
 			return m_Type;
 		}
@@ -106,7 +106,7 @@ HkNfcRw::Type HkNfcRw::detect(bool bNfcA, bool bNfcB, bool bNfcF)
 	if(bNfcA) {
         bool ret = HkNfcA::polling();
 		if(ret) {
-			LOGD("PollingA");
+			LOGD("PollingA\n");
 			m_Type = NFC_A;
 			return m_Type;
 		}
@@ -115,12 +115,12 @@ HkNfcRw::Type HkNfcRw::detect(bool bNfcA, bool bNfcB, bool bNfcF)
 	if(bNfcB) {
         bool ret = HkNfcB::polling();
 		if(ret) {
-			LOGD("PollingB");
+			LOGD("PollingB\n");
 			m_Type = NFC_B;
 			return m_Type;
 		}
 	}
-	LOGD("Detect fail");
+	LOGD("Detect fail\n");
 
 	return NFC_NONE;
 }

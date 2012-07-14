@@ -15,7 +15,6 @@ HkNfcA::SelRes		HkNfcA::m_SelRes;
 namespace {
 	//Polling
 	const uint8_t INLISTPASSIVETARGET[] = { 0x00 };
-	const uint8_t INLISTPASSIVETARGET_RES = 0x01;
 
 	//Key A Authentication
 	const uint8_t KEY_A_AUTH = 0x60;
@@ -41,19 +40,23 @@ bool HkNfcA::polling()
 					INLISTPASSIVETARGET, sizeof(INLISTPASSIVETARGET),
 					&pData, &responseLen);
 	if (!ret
-	  || (responseLen != 12)
-	  || (pData[1] != INLISTPASSIVETARGET_RES)) {
-		//LOGE("pollingA fail: ret=%d/len=%d", ret, responseLen);
+	  || (responseLen < 12)
+	  || (responseLen <  7 + *(pData + 7))) {
+		LOGE("pollingA fail: ret=%d/len=%d\n", ret, responseLen);
 		return false;
 	}
 
+	//[0] d5
+	//[1] 4b
+	//[2] NbTg
+	//[3] Tg
 	if(*(pData + 3) != 0x01) {
-		LOGE("bad TargetNo : %02x", *(pData + 3));
+		LOGE("bad TargetNo : %02x\n", *(pData + 3));
 		return false;
 	}
 
 	m_SensRes = (uint16_t)((*(pData + 4) << 8) | *(pData + 5));
-	LOGD("SENS_RES:%04x", m_SensRes);
+	LOGD("SENS_RES:%04x\n", m_SensRes);
 
 	m_SelRes = (SelRes)*(pData + 6);
 	const char* sel_res;
@@ -69,7 +72,12 @@ bool HkNfcA::polling()
 		m_SelRes = SELRES_UNKNOWN;
 		sel_res = "???";
 	}
-	LOGD("SEL_RES:%02x(%s)", m_SelRes, sel_res);
+	LOGD("SEL_RES:%02x(%s)\n", m_SelRes, sel_res);
+
+	if(responseLen <  7 + *(pData + 7)) {
+		LOGE("bad length\n");
+		return false;
+	}
 
 	NfcPcd::setNfcId(pData + 8, *(pData + 7));
 
@@ -99,7 +107,7 @@ bool HkNfcA::read(uint8_t* buf, uint8_t blockNo)
 					NfcPcd::commandBuf(), 9 + NfcPcd::nfcIdLen(),
 					NfcPcd::responseBuf(), &len);
 	if(!ret) {
-		LOGE("read fail1");
+		LOGE("read fail1\n");
 		return false;
 	}
 #endif
@@ -111,7 +119,7 @@ bool HkNfcA::read(uint8_t* buf, uint8_t blockNo)
 					NfcPcd::commandBuf(), 9 + NfcPcd::nfcIdLen(),
 					NfcPcd::responseBuf(), &len);
 	if(!ret) {
-		LOGE("read fail2");
+		LOGE("read fail2\n");
 		return false;
 	}
 #endif
@@ -124,7 +132,7 @@ bool HkNfcA::read(uint8_t* buf, uint8_t blockNo)
 	if(ret) {
 		memcpy(buf, NfcPcd::responseBuf(), len);
 	} else {
-		LOGE("read fail3");
+		LOGE("read fail3\n");
 	}
 
 	return ret;

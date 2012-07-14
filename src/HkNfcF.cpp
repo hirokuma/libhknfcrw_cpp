@@ -79,7 +79,7 @@ bool HkNfcF::polling(uint16_t systemCode /* = 0xffff */)
 	};
 
 	bool ret;
-	uint8_t responseLen;
+	uint8_t responseLen = 0;
 	uint8_t* pData;
 
 	// 424Kbps
@@ -92,7 +92,7 @@ bool HkNfcF::polling(uint16_t systemCode /* = 0xffff */)
 				&pData, &responseLen);
 	if (!ret
 	  || (memcmp(&pData[3], INLISTPASSIVETARGET_RES, sizeof(INLISTPASSIVETARGET_RES)) != 0)) {
-		LOGE("pollingF fail(424Kbps): ret=%d/len=%d", ret, responseLen);
+		LOGE("pollingF fail(424Kbps): ret=%d/len=%d\n", ret, responseLen);
 
 		//212Kbps
 		NfcPcd::commandBuf(0) = 0x01;
@@ -101,11 +101,15 @@ bool HkNfcF::polling(uint16_t systemCode /* = 0xffff */)
 				&pData, &responseLen);
 		if (!ret
 		  || (memcmp(&pData[3], INLISTPASSIVETARGET_RES, sizeof(INLISTPASSIVETARGET_RES)) != 0)) {
-			LOGE("pollingF fail(212Kbps): ret=%d/len=%d", ret, responseLen);
+			LOGE("pollingF fail(212Kbps): ret=%d/len=%d\n", ret, responseLen);
 			m_SystemCode = kSC_BROADCAST;
 			return false;
 		}
 	}
+	//[0] d5
+	//[1] 4b
+	//[2] NbTg
+	//[3] Tg
 
 	NfcPcd::setNfcId(pData + 6, NfcPcd::NFCID2_LEN);
 	m_SystemCode = (uint16_t)(*(pData + 22) << 8 | *(pData + 23));
@@ -181,7 +185,7 @@ bool HkNfcF::reqSystemCode(uint8_t* pNums)
 						NfcPcd::responseBuf(), &len);
 	if (!ret || (NfcPcd::responseBuf(0) != 0x0d)
 	  || (memcmp(NfcPcd::responseBuf() + 1, NfcPcd::nfcId(), NfcPcd::NFCID2_LEN) != 0)) {
-		LOGE("req_sys_code : ret=%d", ret);
+		LOGE("req_sys_code : ret=%d\n", ret);
 		return false;
 	}
 
@@ -190,7 +194,7 @@ bool HkNfcF::reqSystemCode(uint8_t* pNums)
 	m_syscode_num = *pNums;
 	for(int i=0; i<m_syscode_num; i++) {
 		m_syscode[i] = (uint16_t)(*(NfcPcd::responseBuf() + 10 + i * 2) << 8 | *(NfcPcd::responseBuf() + 10 + i * 2 + 1));
-		LOGD("sys[%d] : %04x", i, m_syscode[i]);
+		LOGD("sys[%d] : %04x\n", i, m_syscode[i]);
 	}
 
 	return true;
@@ -218,7 +222,7 @@ bool HkNfcF::searchServiceCode()
 							NfcPcd::responseBuf(), &len);
 		if (!ret || (NfcPcd::responseBuf(0) != 0x0b)
 		  || (memcmp(NfcPcd::responseBuf() + 1, NfcPcd::nfcId(), NfcPcd::NFCID2_LEN) != 0)) {
-			LOGE("searchServiceCode : ret=%d", ret);
+			LOGE("searchServiceCode : ret=%d\n", ret);
 			return false;
 		}
 
@@ -230,9 +234,9 @@ bool HkNfcF::searchServiceCode()
 			uint16_t code = uint16_t((svc & 0xffc0) >> 6);
 			uint8_t  attr = svc & 0x003f;
 			if(len == 2) {
-				LOGD("%04x(code:%04x : attr:%02x)", svc, code, attr);
+				LOGD("%04x(code:%04x : attr:%02x)\n", svc, code, attr);
 			} else {
-				LOGD("%04x(%s)", svc, (attr) ? "can" : "cannot");
+				LOGD("%04x(%s)\n", svc, (attr) ? "can" : "cannot");
 			}
 #endif
 
@@ -269,7 +273,7 @@ bool HkNfcF::push(const uint8_t* data, uint8_t dataLen)
 	LOGD("%s", __FUNCTION__);
 
 	if (dataLen > 224) {
-		LOGE("bad len");
+		LOGE("bad len\n");
 		return false;
 	}
 
@@ -289,7 +293,7 @@ bool HkNfcF::push(const uint8_t* data, uint8_t dataLen)
 	  (memcmp(NfcPcd::responseBuf() + 1, NfcPcd::nfcId(), NfcPcd::NFCID2_LEN) != 0) ||
 	  (NfcPcd::responseBuf(9) != dataLen)) {
 
-		LOGE("push1 : ret=%d", ret);
+		LOGE("push1 : ret=%d\n", ret);
 		return false;
 	}
 
@@ -308,7 +312,7 @@ bool HkNfcF::push(const uint8_t* data, uint8_t dataLen)
 	  (memcmp(NfcPcd::responseBuf() + 1, NfcPcd::nfcId(), NfcPcd::NFCID2_LEN) != 0) ||
 	  (NfcPcd::responseBuf(9) != 0x00)) {
 
-		LOGE("push2 : ret=%d", ret);
+		LOGE("push2 : ret=%d\n", ret);
 		return false;
 	}
 

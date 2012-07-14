@@ -13,7 +13,7 @@ namespace {
 
 void recv(const void* pBuf, uint8_t len)
 {
-	const char* pStr = reinterpret_cast<const void*>(pBuf);
+	const char* pStr = reinterpret_cast<const char*>(pBuf);
 	std::cout << pStr << std::endl;
 }
 

@@ -19,7 +19,16 @@ int nfc_test()
 	}
 	std::cout << "\nCard Detect & read" << std::endl;
 
-	HkNfcRw::Type type = HkNfcRw::detect(0, 0, true);
+	HkNfcRw::Type type = HkNfcRw::detect(true, true, true);
+	std::cout << "type = " << (int)type << std::endl;
+
+	sleep(1);
+
+	type = HkNfcRw::detect(true, true, true);
+	std::cout << "type = " << (int)type << std::endl;
+
+
+
 	if(type != HkNfcRw::NFC_F) {
 		std::cout << "detect fail" << std::endl;
 		HkNfcRw::close();

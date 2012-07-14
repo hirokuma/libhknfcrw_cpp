@@ -674,7 +674,7 @@ bool NfcPcd::inJumpForPsl(DepInitiatorParam* pParam)
  *
  * @param[in]	pInitData		InListPassiveTargetの引数
  * @param[in]	InitLen			pInitDataの長さ
- * @param[out]	ppTgData		InListPassiveTargeの戻り値
+ * @param[out]	ppTgData		InListPassiveTargeの戻り値(内部バッファを返す)
  * @param[out]	pTgLen			*ppTgDataの長さ
  *
  * @retval		true			成功
@@ -691,7 +691,7 @@ bool NfcPcd::inListPassiveTarget(
 	memcpy(s_NormalFrmBuf + 3, pInitData, InitLen);
 
 	bool ret = sendCmd(s_NormalFrmBuf, 3+InitLen, s_ResponseBuf, &responseLen);
-	if(!ret || s_ResponseBuf[POS_RESDATA] != 0x01) {
+	if(!ret || s_ResponseBuf[POS_RESDATA] != 0x01) {	//NbTg==1
 		return false;
 	}
 	*ppTgData = s_ResponseBuf;

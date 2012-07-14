@@ -8,6 +8,9 @@
  * @brief	NFC-Bアクセス
  */
 class HkNfcB {
+public:
+	static const uint8_t NFCID_LEN = 4;
+
 private:
 	HkNfcB();
 	HkNfcB(const HkNfcB&);
